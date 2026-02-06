@@ -23,11 +23,16 @@ jobs:
 
       - name: Build Release App
         run: |
+          # 禁用代码签名以避免 CI 中缺少签名证书导致构建失败。
+          # 如果你需要生产签名（发布到 App Store 或有签名需求），请参考下方说明并在 workflow 中安装证书与 provisioning profile。
           xcodebuild \
             -project wallpaper.xcodeproj \
             -scheme wallpaper \
             -configuration Release \
             -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=\"\" \
             clean build
 
       - name: Create DMG
