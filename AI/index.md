@@ -81,3 +81,8 @@ Item.swift：SwiftData 模型，仅含一个 timestamp 字段。
 为什么 macos 的扩展屏幕 无法应用视频壁纸, 是哪里权限有问题吗,  主屏幕可以应用
 1.分析原因
 2.打印详细中文日志
+
+
+# 菜单
+左侧菜单栏,素材库,相册,规则,设置 都有什么功能,请详细描述,以及规划
+写入到 /Users/wangpenglong/projects/swift/wallpaper/AI/plan 文件夹下
