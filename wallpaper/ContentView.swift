@@ -328,8 +328,10 @@ struct MediaDetailView: View {
                 ContentUnavailableView("无法预览", systemImage: "photo") // 预览失败
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 260) // 预览区域高度
+        .frame(maxWidth: .infinity) // 预览区域宽度
+        .frame(height: 360) // 固定高度，避免影响全局布局
         .glassSurface(cornerRadius: 12) // 玻璃容器
+        .clipped() // 裁剪溢出，避免撑高页面
     }
 
     private var fitModePicker: some View { // 适配模式选择器
@@ -394,6 +396,7 @@ struct MediaDetailView: View {
             Image(nsImage: image) // 图片
                 .resizable() // 可拉伸
                 .scaledToFit() // 适应
+                .frame(maxWidth: .infinity, maxHeight: .infinity) // 填满
         case .stretch:
             Image(nsImage: image) // 图片
                 .resizable() // 可拉伸
@@ -402,31 +405,11 @@ struct MediaDetailView: View {
         case .center:
             Image(nsImage: image) // 图片
                 .resizable() // 可拉伸
-                .scaledToFit() // 适应
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center) // 居中
+                .clipped() // 裁剪
         case .tile:
-            GeometryReader { proxy in // 获取尺寸
-                let tileSize = CGSize(width: min(200, proxy.size.width / 3), height: min(200, proxy.size.height / 3)) // 平铺尺寸
-                let columns = max(Int(proxy.size.width / tileSize.width), 1) // 列数
-                let rows = max(Int(proxy.size.height / tileSize.height), 1) // 行数
-                let imageView = Image(nsImage: image) // 图片
-                    .resizable() // 可拉伸
-                    .scaledToFill() // 填充
-                    .frame(width: tileSize.width, height: tileSize.height) // 单元尺寸
-                    .clipped() // 裁剪
-                VStack(spacing: 0) { // 垂直平铺
-                    ForEach(0..<rows, id: \.self) { _ in // 行
-                        HStack(spacing: 0) { // 行内平铺
-                            ForEach(0..<columns, id: \.self) { _ in // 列
-                                imageView // 单元图片
-                            }
-                        }
-                    }
-                }
-                .frame(width: proxy.size.width, height: proxy.size.height) // 填满区域
+            TiledImageView(image: image) // 原生平铺
                 .clipped() // 裁剪溢出
-            }
-            .clipped() // 裁剪溢出
         }
     }
 }
@@ -454,5 +437,21 @@ extension View {
         } else { // 低版本回退
             self.buttonStyle(.borderedProminent) // 默认按钮
         }
+    }
+}
+
+// TiledImageView：使用 AppKit 的 patternImage 做原生平铺
+struct TiledImageView: NSViewRepresentable {
+    let image: NSImage // 平铺图片
+
+    func makeNSView(context: Context) -> NSView { // 创建视图
+        let view = NSView() // 创建 NSView
+        view.wantsLayer = true // 启用图层
+        view.layer?.backgroundColor = NSColor(patternImage: image).cgColor // 平铺背景
+        return view // 返回视图
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) { // 更新视图
+        nsView.layer?.backgroundColor = NSColor(patternImage: image).cgColor // 更新平铺
     }
 }
