@@ -9,6 +9,7 @@ struct SettingsView: View {
     @AppStorage("themeMode") private var themeMode = "system" // 主题模式
     @State private var alertMessage: String? // 错误提示
     @State private var showingClearCacheConfirm = false // 清理确认弹窗
+    @State private var showingCustomPicker = false // 自定义颜色
 
     var body: some View { // 主体
         ScrollView {
@@ -56,7 +57,30 @@ struct SettingsView: View {
                         .frame(width: 150)
                     }
                     Divider().background(.white.opacity(0.1))
-                    ColorPicker("主题主色调", selection: themeColorBinding, supportsOpacity: true) // 主题色
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("主题主色调")
+                            .font(.subheadline)
+                        LazyVGrid(columns: themeColumns, spacing: 12) {
+                            ForEach(themePresets, id: \.self) { hex in
+                                themeSwatch(hex)
+                            }
+                            Button {
+                                showingCustomPicker.toggle()
+                            } label: {
+                                ZStack {
+                                    Circle()
+                                        .stroke(Color.accentColor.opacity(0.5), lineWidth: 1)
+                                        .frame(width: 36, height: 36)
+                                    Image(systemName: "eyedropper.halffull")
+                                        .font(.caption)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        if showingCustomPicker {
+                            ColorPicker("自定义颜色", selection: themeColorBinding, supportsOpacity: true)
+                        }
+                    }
                 }
 
                 // 说明
@@ -163,8 +187,50 @@ struct GlassSection<Content: View>: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(.white.opacity(0.2), lineWidth: 0.5)
+                .stroke(Color.accentColor.opacity(0.35), lineWidth: 0.8)
         )
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+    }
+}
+
+extension SettingsView {
+    private var themePresets: [String] { // 预设主题色
+        [
+            "#0A84FF", // 蓝
+            "#34C759", // 绿
+            "#FF9500", // 橙
+            "#FF2D55", // 粉
+            "#AF52DE", // 紫
+            "#FFD60A", // 黄
+            "#64D2FF", // 青
+            "#A2845E", // 棕
+        ]
+    }
+
+    private var themeColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: 36), spacing: 12)]
+    }
+
+    private func themeSwatch(_ hex: String) -> some View {
+        let color = ThemeColor.color(from: hex)
+        return Button {
+            themeColorHex = hex
+            NSLog("[设置] 主题色更新：\(themeColorHex)")
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(color)
+                    .frame(width: 36, height: 36)
+                if themeColorHex.uppercased() == hex.uppercased() {
+                    Image(systemName: "checkmark")
+                        .font(.caption.bold())
+                        .foregroundStyle(.white)
+                        .shadow(radius: 1)
+                }
+                Circle()
+                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
     }
 }

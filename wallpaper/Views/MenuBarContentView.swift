@@ -3,6 +3,8 @@ import SwiftUI // SwiftUI 界面
 
 // MenuBarContentView：菜单栏内容
 struct MenuBarContentView: View {
+    @AppStorage("themeColorHex") private var themeColorHex = ThemeColor.defaultHex // 主题色
+
     var body: some View { // 主体
         VStack(alignment: .leading, spacing: 8) { // 垂直布局
             Button("显示主窗口") { // 显示主窗口
@@ -23,5 +25,6 @@ struct MenuBarContentView: View {
             }
         }
         .padding(8) // 内边距
+        .tint(ThemeColor.color(from: themeColorHex)) // 应用主题色
     }
 }
