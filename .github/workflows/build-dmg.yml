@@ -32,7 +32,7 @@ jobs:
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY=\"\" \
+            CODE_SIGN_IDENTITY="" \
             clean build
 
       - name: Create DMG
@@ -43,14 +43,16 @@ jobs:
             echo "App not found at $APP_PATH"
             exit 1
           fi
-          mkdir -p dmg
-          cp -R "$APP_PATH" dmg/
+          STAGE_DIR="$(mktemp -d)"
+          cp -R "$APP_PATH" "$STAGE_DIR/"
+          ln -s /Applications "$STAGE_DIR/Applications"
           hdiutil create \
             -volname "${APP_NAME}" \
-            -srcfolder dmg \
+            -srcfolder "$STAGE_DIR" \
             -ov \
             -format UDZO \
             "${APP_NAME}.dmg"
+          rm -rf "$STAGE_DIR"
 
       - name: Create GitHub Release
         id: create_release
