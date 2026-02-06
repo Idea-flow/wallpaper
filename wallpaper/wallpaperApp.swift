@@ -40,7 +40,7 @@ struct wallpaperApp: App {
         }
         .modelContainer(sharedModelContainer) // 注入数据容器
 
-        MenuBarExtra("wallpaper", systemImage: "photo", isInserted: $menuBarEnabled) { // 菜单栏
+        MenuBarExtra("wallpaper", image: "MenuBarIcon", isInserted: $menuBarEnabled) { // 菜单栏
             MenuBarContentView() // 菜单栏内容
         }
     }
