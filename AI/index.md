@@ -1,0 +1,22 @@
+这是一个新建的 SwiftUI + SwiftData 模板项目，功能基本等同 Xcode 的默认示例。结构很简单：
+
+wallpaperApp.swift：应用入口，创建 ModelContainer，把 ContentView 放进 WindowGroup，并注入 SwiftData 容器。
+ContentView.swift：主界面，用 NavigationSplitView 展示 Item 列表，可新增/删除，点击查看时间详情。
+Item.swift：SwiftData 模型，仅含一个 timestamp 字段。
+目前没有和“壁纸”相关的功能实现，就是一个可增删时间记录的基础模板。
+
+我想做一个原生的macos的壁纸系统,给我规划功能,使用原生的macos的技术,例如：swiftUI,swiftData,原生Liquid Glass 样式等,并且给我规划功能模块,
+功能模块规划写入到,需要支持壁纸,和视频
+/Users/wangpenglong/projects/swift/wallpaper/AI/plan 这个文件夹下
+
+整个过程中咱来的聊天记录,保存到
+/Users/wangpenglong/projects/swift/wallpaper/AI/record
+
+我想做一个原生的macos的壁纸系统,给我规划功能,使用原生的macos的技术,例如：swiftUI,swiftData,原生Liquid Glass 样式等,并且给我规划功能模块,
+需要支持壁纸,和视频,功能模块规划写入到,不需要开发计划,详细一点
+
+/Users/wangpenglong/projects/swift/wallpaper/AI/plan/macos-wallpaper-plan.md
+
+
+1.全程使用中文 完成这个项目
+2.支持导入图片功能

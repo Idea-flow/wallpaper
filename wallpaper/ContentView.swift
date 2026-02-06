@@ -24,7 +24,9 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \MediaItem.createdAt, order: .reverse) private var items: [MediaItem]
 
-    @State private var selection: MediaItem?
+    // Use the item's id for List selection (UUID is Hashable)
+    @State private var selectionID: UUID?
+    private var selectedItem: MediaItem? { items.first { $0.id == selectionID } }
     @State private var sidebarSelection: SidebarSection = .library
     @State private var showingImporter = false
     @State private var alertMessage: String?
@@ -69,10 +71,10 @@ struct ContentView: View {
     }
 
     private var libraryList: some View {
-        List(selection: $selection) {
+        List(selection: $selectionID) {
             ForEach(items) { item in
                 MediaRow(item: item)
-                    .tag(item)
+                    .tag(item.id)
             }
             .onDelete(perform: deleteItems)
         }
@@ -87,7 +89,7 @@ struct ContentView: View {
 
     private var detailView: some View {
         Group {
-            if let item = selection {
+            if let item = selectedItem {
                 MediaDetailView(
                     item: item,
                     fitMode: $selectedFitMode,
