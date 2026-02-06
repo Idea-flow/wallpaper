@@ -217,12 +217,31 @@ struct ThumbnailView: View {
     let item: MediaItem // 素材
 
     var body: some View { // 视图
+        let result = MediaAccessService.loadImageResult(for: item) // 读取结果
         ZStack { // 叠放
-            if item.type == .image, let image = MediaAccessService.loadImage(for: item) { // 图片
-                Image(nsImage: image) // 显示图片
-                    .resizable() // 可拉伸
-                    .scaledToFill() // 填充
-            } else {
+            if item.type == .image { // 图片类型
+                if let image = result.image { // 读取成功
+                    Image(nsImage: image) // 显示图片
+                        .resizable() // 可拉伸
+                        .scaledToFill() // 填充
+                } else { // 读取失败
+                    Rectangle() // 占位背景
+                        .fill(.quaternary) // 次级颜色
+                    VStack(spacing: 4) { // 垂直布局
+                        Image(systemName: "photo") // 图标
+                            .foregroundStyle(.secondary) // 次级颜色
+                        Text(item.fileURL.lastPathComponent) // 文件名
+                            .font(.caption2) // 小字号
+                            .foregroundStyle(.secondary) // 次级颜色
+                            .lineLimit(1) // 单行
+                    }
+                    .onAppear { // 进入时打印日志
+                        if let reason = result.reason { // 有原因
+                            NSLog("[预览-列表] \(reason)") // 日志
+                        }
+                    }
+                }
+            } else { // 非图片（视频或其他）
                 Rectangle() // 占位背景
                     .fill(.quaternary) // 次级颜色
                 Image(systemName: item.type == .video ? "film" : "photo") // 图标
@@ -268,24 +287,38 @@ struct MediaDetailView: View {
     }
 
     private var preview: some View { // 预览区域
-        Group {
+        let result = MediaAccessService.loadImageResult(for: item) // 读取结果
+        return Group {
             if item.type == .image { // 图片预览
-                if let image = MediaAccessService.loadImage(for: item) { // 能读取图片
+                if let image = result.image { // 有图片
                     imagePreview(image) // 按模式预览
                         .clipShape(.rect(cornerRadius: 12)) // 圆角
-                } else { // 无法读取图片时显示文件名
+                } else { // 读取失败
                     VStack(spacing: 8) { // 垂直布局
                         Image(systemName: "photo") // 图标
                             .font(.system(size: 40)) // 图标大小
                             .foregroundStyle(.secondary) // 次级颜色
                         Text("无法预览") // 文案
                             .font(.headline) // 标题
-                        Text(item.fileURL.lastPathComponent) // 显示文件名
+                        Text(item.fileURL.lastPathComponent) // 文件名
                             .font(.subheadline) // 副标题
                             .foregroundStyle(.secondary) // 次级颜色
                             .lineLimit(2) // 最多两行
                             .multilineTextAlignment(.center) // 居中
                             .padding(.horizontal, 16) // 左右内边距
+                        if let reason = result.reason { // 有原因
+                            Text(reason) // 原因说明
+                                .font(.caption) // 小字
+                                .foregroundStyle(.secondary) // 次级颜色
+                                .multilineTextAlignment(.center) // 居中
+                                .padding(.horizontal, 16) // 左右内边距
+                                .lineLimit(3) // 最多三行
+                        }
+                    }
+                    .onAppear { // 进入时打印日志
+                        if let reason = result.reason { // 有原因
+                            NSLog("[预览-详情] \(reason)") // 日志
+                        }
                     }
                 }
             } else if item.type == .video { // 视频预览
