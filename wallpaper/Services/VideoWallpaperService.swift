@@ -1,0 +1,107 @@
+import AppKit // 创建桌面窗口
+import AVFoundation // 播放视频
+import CoreGraphics // 使用桌面窗口层级
+
+// VideoWallpaperService：管理视频壁纸的桌面播放
+final class VideoWallpaperService {
+    static let shared = VideoWallpaperService() // 单例实例
+
+    // Entry：记录每个屏幕的窗口与播放器
+    struct Entry {
+        let window: NSWindow // 承载视频的窗口
+        let player: AVPlayer // 视频播放器
+    }
+
+    private var entries: [ObjectIdentifier: Entry] = [:] // 屏幕对应的播放条目
+    private var accessToken: MediaAccessService.AccessToken? // 长期安全访问令牌
+
+    private init() {} // 禁止外部初始化
+
+    // applyVideo：将视频应用为桌面壁纸
+    func applyVideo(item: MediaItem, fitMode: FitMode) throws {
+        print("[视频壁纸] 启动视频壁纸：\(item.fileURL.lastPathComponent)") // 关键步骤日志
+
+        let token = try MediaAccessService.beginAccess(for: item) // 开始安全访问
+        let screens = NSScreen.screens // 获取所有屏幕
+
+        stopAll() // 启动前清理旧的播放
+        accessToken = token // 保存访问令牌
+
+        for screen in screens { // 遍历屏幕
+            let gravity = videoGravity(for: fitMode) // 计算视频适配方式
+            let window = makeWindow(for: screen) // 创建桌面窗口
+
+            let asset = AVURLAsset(url: token.url) // 创建视频资源
+            let playerItem = AVPlayerItem(asset: asset) // 创建播放条目
+            let player = AVPlayer(playerItem: playerItem) // 创建播放器
+
+            let view = NSView(frame: window.contentView?.bounds ?? .zero) // 创建容器视图
+            view.wantsLayer = true // 启用图层
+            view.autoresizingMask = [.width, .height] // 自适应窗口大小
+
+            let layer = AVPlayerLayer(player: player) // 创建播放图层
+            layer.videoGravity = gravity // 设置适配模式
+            layer.frame = view.bounds // 设置图层大小
+            view.layer = layer // 把图层挂在视图上
+
+            window.contentView = view // 设置窗口内容
+            window.orderBack(nil) // 放到桌面层
+            player.play() // 播放视频
+
+            let key = ObjectIdentifier(screen) // 生成屏幕标识
+            entries[key] = Entry(window: window, player: player) // 保存条目
+        }
+    }
+
+    // stopAll：停止所有视频壁纸
+    func stopAll() {
+        if !entries.isEmpty { // 仅在有播放时打印
+            print("[视频壁纸] 停止所有视频壁纸") // 关键步骤日志
+        }
+        for entry in entries.values { // 遍历条目
+            entry.player.pause() // 暂停播放
+            entry.window.orderOut(nil) // 隐藏窗口
+        }
+        entries.removeAll() // 清空条目
+        accessToken?.stopAccess() // 释放安全访问
+        accessToken = nil // 清空访问令牌
+    }
+
+    // makeWindow：创建桌面层窗口
+    private func makeWindow(for screen: NSScreen) -> NSWindow {
+        let window = NSWindow( // 创建窗口
+            contentRect: screen.frame, // 使用屏幕尺寸
+            styleMask: [.borderless], // 无边框
+            backing: .buffered, // 缓冲方式
+            defer: false, // 立即创建
+            screen: screen // 目标屏幕
+        )
+        let desktopLevel = CGWindowLevelForKey(.desktopWindow) // 获取桌面层级
+        window.level = NSWindow.Level(rawValue: Int(desktopLevel)) // 设置窗口层级
+        window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle] // 多空间配置
+        window.backgroundColor = .clear // 透明背景
+        window.isOpaque = false // 非不透明
+        window.hasShadow = false // 无阴影
+        window.ignoresMouseEvents = true // 不拦截鼠标
+        window.isMovable = false // 不允许移动
+        window.titleVisibility = .hidden // 隐藏标题
+        window.titlebarAppearsTransparent = true // 标题栏透明
+        return window // 返回窗口
+    }
+
+    // videoGravity：根据适配模式选择视频缩放
+    private func videoGravity(for fitMode: FitMode) -> AVLayerVideoGravity {
+        switch fitMode { // 根据模式选择
+        case .fill:
+            return .resizeAspectFill // 填充
+        case .fit:
+            return .resizeAspect // 适应
+        case .stretch:
+            return .resize // 拉伸
+        case .center:
+            return .resizeAspect // 近似居中
+        case .tile:
+            return .resizeAspectFill // 近似平铺
+        }
+    }
+}
