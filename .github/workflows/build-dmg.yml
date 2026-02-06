@@ -1,5 +1,8 @@
 name: Build DMG
 
+permissions:
+  contents: write
+
 on:
   push:
     branches: [ "main" ]
@@ -44,8 +47,34 @@ jobs:
             -format UDZO \
             "${APP_NAME}.dmg"
 
-      - name: Upload DMG Artifact
-        uses: actions/upload-artifact@v4
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: wallpaper-dmg
-          path: wallpaper.dmg
+          # Use a run-specific tag to avoid clobbering existing releases
+          tag_name: "artifact-${{ github.run_number }}"
+          release_name: "artifact-${{ github.run_number }}"
+          body: "Automated release for run ${{ github.run_id }} (artifact wallpaper.dmg)"
+          draft: false
+          prerelease: false
+
+      - name: Upload DMG to Release
+        id: upload_release_asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: wallpaper.dmg
+          asset_name: wallpaper.dmg
+          asset_content_type: application/octet-stream
+
+      - name: Print Release asset download URL
+        run: |
+          echo "Release 页面: ${{ steps.create_release.outputs.html_url }}"
+          echo "Release 标签: ${{ steps.create_release.outputs.tag_name }}"
+          echo "资产浏览下载 URL: ${{ steps.upload_release_asset.outputs.browser_download_url }}"
+          echo "在浏览器中打开上述 URL 可直接下载；若使用 curl，可运行："
+          echo "curl -L -o wallpaper.dmg \"${{ steps.upload_release_asset.outputs.browser_download_url }}\""
