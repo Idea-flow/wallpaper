@@ -67,6 +67,8 @@ struct LibraryView: View {
                     }
                     .onDelete(perform: deleteItems)
                 }
+                .scrollContentBackground(.hidden)
+                .background(Color.clear)
             }
         }
         .animation(Glass.animation, value: selectionIDs)

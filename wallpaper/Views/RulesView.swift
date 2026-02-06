@@ -22,6 +22,8 @@ struct RulesView: View {
             }
             .onDelete(perform: deleteRules)
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.clear)
         .toolbar {
             Button {
                 newRuleName = ""
@@ -208,6 +210,8 @@ struct RuleDetailView: View {
             }
             .padding()
         }
+        .scrollIndicators(.hidden)
+        .background(Color.clear)
     }
 }
 

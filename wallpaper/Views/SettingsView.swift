@@ -51,14 +51,7 @@ struct SettingsView: View {
                     HStack {
                         Text("主题模式")
                         Spacer()
-                        Picker("", selection: $themeMode) { // 主题模式
-                            Text("系统").tag("system") // 系统
-                            Text("明亮").tag("light") // 明亮
-                            Text("暗黑").tag("dark") // 暗黑
-                        }
-                        .pickerStyle(.segmented) // 分段样式
-                        .frame(width: 150)
-                        .glassCapsuleBackground()
+                        ThemeModeSelector(selection: $themeMode)
                     }
                     Divider().background(.white.opacity(0.1))
                     VStack(alignment: .leading, spacing: 12) {
@@ -194,6 +187,43 @@ struct GlassSection<Content: View>: View {
                 .stroke(.white.opacity(0.18), lineWidth: 0.6)
         )
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+    }
+}
+
+struct ThemeModeSelector: View {
+    @Binding var selection: String
+
+    private let options: [(String, String)] = [
+        ("system", "系统"),
+        ("light", "明亮"),
+        ("dark", "暗黑"),
+    ]
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(options, id: \.0) { key, title in
+                Button {
+                    withAnimation(Glass.animation) {
+                        selection = key
+                    }
+                } label: {
+                    Text(title)
+                        .font(.subheadline)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .frame(minWidth: 44)
+                        .foregroundStyle(selection == key ? .primary : .secondary)
+                        .background {
+                            if selection == key {
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(Color.accentColor.opacity(0.18))
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .glassCapsuleBackground()
     }
 }
 

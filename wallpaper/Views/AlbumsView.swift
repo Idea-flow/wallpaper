@@ -256,6 +256,8 @@ struct AlbumDetailView: View {
                     }
                 }
                 .listStyle(.inset)
+                .scrollContentBackground(.hidden)
+                .background(Color.clear)
             }
         }
     }

@@ -10,6 +10,12 @@ macOS 26+ 使用玻璃胶囊开关样式。
 
 规则页面是否启用 也使用 素材详情页收藏”一致的胶囊样式（文字 + 右侧开关同一胶囊容器）：
 
+[$swiftui-expert-skill](/Users/wangpenglong/projects/swift/wallpaper/.agents/skills/swiftui-expert-skill/SKILL.md)
+1.明亮模式 和暗黑模式 系统模式 切换的时候 效果不是很好, 修改这部分的交互效果,以及各个样式适配不同的模式
+2.很多页面, 边框不好看,例如规则, 例如范围, 相册 背景是黑色的, 但是还有灰色的没有撑满,看着很怪 优化这点
+完成这两个功能
+
+
 macos 原生壁纸模式:
  1.充满屏幕
 2.适应于屏幕
