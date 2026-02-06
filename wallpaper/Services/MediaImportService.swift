@@ -32,8 +32,8 @@ struct MediaImportService {
         switch type { // 根据素材类型处理
         case .image:
             let image = NSImage(contentsOf: url) // 读取图片
-            let width = image?.size.width.map { Double($0) } // 宽度
-            let height = image?.size.height.map { Double($0) } // 高度
+            let width = image.map { Double($0.size.width) } // 宽度
+            let height = image.map { Double($0.size.height) } // 高度
             let item = MediaItem( // 创建素材模型
                 type: .image, // 类型：图片
                 fileURL: url, // 文件路径
@@ -54,8 +54,8 @@ struct MediaImportService {
                 type: .video, // 类型：视频
                 fileURL: url, // 文件路径
                 bookmarkData: bookmarkData, // 书签
-                width: size?.width.map { Double($0) }, // 宽度
-                height: size?.height.map { Double($0) }, // 高度
+                width: size.map { Double($0.width) }, // 宽度
+                height: size.map { Double($0.height) }, // 高度
                 duration: duration.isFinite ? duration : nil, // 时长
                 frameRate: frameRate.map { Double($0) }, // 帧率
                 sizeBytes: sizeBytes // 文件大小

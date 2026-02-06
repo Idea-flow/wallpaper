@@ -269,9 +269,25 @@ struct MediaDetailView: View {
 
     private var preview: some View { // 预览区域
         Group {
-            if item.type == .image, let image = MediaAccessService.loadImage(for: item) { // 图片预览
-                imagePreview(image) // 按模式预览
-                    .clipShape(.rect(cornerRadius: 12)) // 圆角
+            if item.type == .image { // 图片预览
+                if let image = MediaAccessService.loadImage(for: item) { // 能读取图片
+                    imagePreview(image) // 按模式预览
+                        .clipShape(.rect(cornerRadius: 12)) // 圆角
+                } else { // 无法读取图片时显示文件名
+                    VStack(spacing: 8) { // 垂直布局
+                        Image(systemName: "photo") // 图标
+                            .font(.system(size: 40)) // 图标大小
+                            .foregroundStyle(.secondary) // 次级颜色
+                        Text("无法预览") // 文案
+                            .font(.headline) // 标题
+                        Text(item.fileURL.lastPathComponent) // 显示文件名
+                            .font(.subheadline) // 副标题
+                            .foregroundStyle(.secondary) // 次级颜色
+                            .lineLimit(2) // 最多两行
+                            .multilineTextAlignment(.center) // 居中
+                            .padding(.horizontal, 16) // 左右内边距
+                    }
+                }
             } else if item.type == .video { // 视频预览
                 VideoPlayerView(item: item, isMuted: true) // 视频预览
                     .clipShape(.rect(cornerRadius: 12)) // 圆角
