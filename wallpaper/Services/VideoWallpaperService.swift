@@ -44,7 +44,7 @@ final class VideoWallpaperService {
             let player = AVPlayer(playerItem: playerItem) // 创建播放器
             player.actionAtItemEnd = .none // 播放结束不自动停止
 
-            let view = NSView(frame: window.contentView?.bounds ?? .zero) // 创建容器视图
+            let view = NSView(frame: NSRect(origin: .zero, size: screen.frame.size)) // 创建容器视图
             view.wantsLayer = true // 启用图层
             view.autoresizingMask = [.width, .height] // 自适应窗口大小
 
@@ -56,6 +56,7 @@ final class VideoWallpaperService {
             window.contentView = view // 设置窗口内容
             window.orderBack(nil) // 放到桌面层
             player.play() // 播放视频
+            NSLog("[视频壁纸] 视图大小：\(view.bounds) layer=\(layer.frame)") // 日志
 
             let endObserver = NotificationCenter.default.addObserver( // 监听播放结束
                 forName: .AVPlayerItemDidPlayToEndTime, // 播放结束通知
@@ -89,8 +90,9 @@ final class VideoWallpaperService {
 
     // makeWindow：创建桌面层窗口
     private func makeWindow(for screen: NSScreen) -> NSWindow {
+        let contentRect = NSRect(origin: .zero, size: screen.frame.size) // 内容区域尺寸
         let window = NSWindow( // 创建窗口
-            contentRect: screen.frame, // 使用屏幕尺寸
+            contentRect: contentRect, // 使用屏幕尺寸
             styleMask: [.borderless], // 无边框
             backing: .buffered, // 缓冲方式
             defer: false, // 立即创建
@@ -98,7 +100,7 @@ final class VideoWallpaperService {
         )
         let desktopLevel = CGWindowLevelForKey(.desktopWindow) // 获取桌面层级
         window.level = NSWindow.Level(rawValue: Int(desktopLevel)) // 设置窗口层级
-        window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle] // 多空间配置
+        window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary] // 多空间配置
         window.backgroundColor = .clear // 透明背景
         window.isOpaque = false // 非不透明
         window.hasShadow = false // 无阴影
@@ -106,6 +108,9 @@ final class VideoWallpaperService {
         window.isMovable = false // 不允许移动
         window.titleVisibility = .hidden // 隐藏标题
         window.titlebarAppearsTransparent = true // 标题栏透明
+        window.isReleasedWhenClosed = false // 避免被系统释放
+        window.setFrame(screen.frame, display: true) // 强制设置到屏幕坐标
+        NSLog("[视频壁纸] 窗口创建：screen=\(screen.localizedName) frame=\(screen.frame) content=\(contentRect)") // 日志
         return window // 返回窗口
     }
 
