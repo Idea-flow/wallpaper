@@ -26,5 +26,6 @@ struct MenuBarContentView: View {
         }
         .padding(8) // 内边距
         .tint(ThemeColor.color(from: themeColorHex)) // 应用主题色
+        .glassPanel(cornerRadius: 12)
     }
 }

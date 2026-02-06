@@ -179,6 +179,8 @@ struct MediaDetailView: View {
                 Text(FitMode.tile.displayName).tag(FitMode.tile) // 拼贴
             }
             .pickerStyle(.segmented) // 分段样式
+            .padding(4)
+            .glassControl(cornerRadius: 10)
         }
     }
 
@@ -195,6 +197,8 @@ struct MediaDetailView: View {
                 }
             }
             .pickerStyle(.segmented) // 分段样式
+            .padding(4)
+            .glassControl(cornerRadius: 10)
         }
     }
 
@@ -295,22 +299,12 @@ struct MediaDetailView: View {
     }
 
     private var favoriteToggle: some View { // 收藏开关
-        Group {
-            if #available(macOS 26, *) {
-                Toggle(isOn: $item.isFavorite) {
-                    Text("收藏")
-                }
-                .toggleStyle(.switch)
-                .tint(.pink)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .glassEffect(.regular.interactive(), in: .capsule)
-            } else {
-                Toggle("收藏", isOn: $item.isFavorite)
-                    .toggleStyle(.switch)
-                    .tint(.pink)
-            }
+        Toggle(isOn: $item.isFavorite) {
+            Text("收藏")
         }
+        .toggleStyle(.switch)
+        .tint(.pink)
+        .glassCapsuleBackground()
     }
 
     private var ratingEditor: some View { // 评分编辑

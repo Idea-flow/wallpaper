@@ -267,53 +267,6 @@ struct MediaRow: View {
         .modelContainer(for: MediaItem.self, inMemory: true) // 使用内存模型
 }
 
-// View 扩展：封装 Liquid Glass 样式
-extension View {
-    @ViewBuilder
-    func glassSurface(cornerRadius: CGFloat = 16) -> some View { // 玻璃容器
-        if #available(macOS 26, *) { // Liquid Glass
-            self.glassEffect(.regular, in: .rect(cornerRadius: cornerRadius)) // 原生玻璃
-        } else {
-            self.background {
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(.ultraThinMaterial) // 磨砂背景
-                    .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5) // 柔和阴影
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(.white.opacity(0.2), lineWidth: 0.5) // 精致描边
-            }
-        }
-    }
-
-    @ViewBuilder
-    func glassActionButtonStyle() -> some View { // 玻璃按钮样式
-        if #available(macOS 26, *) { // Liquid Glass
-            self.buttonStyle(.glassProminent)
-        } else {
-            self.buttonStyle(GlassButtonStyle())
-        }
-    }
-}
-
-struct GlassButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background {
-                Capsule()
-                    .fill(configuration.isPressed ? .thickMaterial : .regularMaterial)
-            }
-            .overlay {
-                Capsule()
-                    .stroke(.white.opacity(0.2), lineWidth: 0.5)
-            }
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(.easeInOut(duration: 0.2), value: configuration.isPressed)
-    }
-}
-
 // MediaCard 移到 MediaComponents.swift
 
 // TiledImageView 移到 MediaComponents.swift

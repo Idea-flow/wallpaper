@@ -69,6 +69,7 @@ struct LibraryView: View {
                 }
             }
         }
+        .animation(Glass.animation, value: selectionIDs)
         .onChange(of: selectionIDs) { _, newValue in // 同步详情选择
             if newValue.isEmpty {
                 focusedItemID = nil
@@ -138,6 +139,7 @@ struct LibraryView: View {
                 }
                 Divider() // 分隔线
                 Toggle("仅收藏", isOn: $showFavoritesOnly) // 收藏过滤
+                    .glassCapsuleBackground()
             } label: {
                 Label("筛选", systemImage: "line.3.horizontal.decrease.circle") // 图标
             }

@@ -77,8 +77,15 @@ struct RuleListRow: View {
                     .foregroundStyle(rule.enabled ? .green : .secondary)
             }
             Spacer()
-            Toggle("", isOn: $rule.enabled)
-                .labelsHidden()
+        }
+        .overlay(alignment: .trailing) {
+            HStack(spacing: 12) {
+                Text("启用")
+                Toggle("", isOn: $rule.enabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+            .glassCapsuleBackground()
         }
         .padding(.vertical, 4)
     }
@@ -113,7 +120,14 @@ struct RuleDetailView: View {
                 TextField("规则名称", text: nameBinding)
                     .textFieldStyle(.roundedBorder)
 
-                Toggle("启用规则", isOn: $rule.enabled)
+                HStack(spacing: 12) {
+                    Text("启用规则")
+                    Spacer(minLength: 12)
+                    Toggle("", isOn: $rule.enabled)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+                .glassCapsuleBackground()
 
                 HStack {
                     Text("切换间隔")
@@ -128,6 +142,8 @@ struct RuleDetailView: View {
                         Text("单屏").tag(RuleScope.screen.rawValue)
                     }
                     .pickerStyle(.segmented)
+                    .padding(4)
+                    .glassControl(cornerRadius: 10)
                 }
 
                 if rule.scope == .screen {
@@ -157,6 +173,8 @@ struct RuleDetailView: View {
                             Text(album.name).tag(album.id)
                         }
                     }
+                    .padding(4)
+                    .glassControl(cornerRadius: 10)
                 }
 
                 WeekdayPicker(selected: Binding(
@@ -177,6 +195,8 @@ struct RuleDetailView: View {
                         Text("避免近期重复").tag(RandomStrategy.avoidRecent.rawValue)
                     }
                     .pickerStyle(.segmented)
+                    .padding(4)
+                    .glassControl(cornerRadius: 10)
                 }
 
                 HStack {
@@ -209,7 +229,14 @@ struct NewRuleSheet: View {
             TextField("规则名称", text: $name)
                 .textFieldStyle(.roundedBorder)
 
-            Toggle("启用规则", isOn: $enabled)
+            HStack(spacing: 12) {
+                Text("启用规则")
+                Spacer(minLength: 12)
+                Toggle("", isOn: $enabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+            .glassCapsuleBackground()
 
             HStack {
                 Text("切换间隔")
@@ -224,6 +251,8 @@ struct NewRuleSheet: View {
                     Text("单屏").tag(RuleScope.screen)
                 }
                 .pickerStyle(.segmented)
+                .padding(4)
+                .glassControl(cornerRadius: 10)
             }
 
             Spacer()
@@ -232,7 +261,7 @@ struct NewRuleSheet: View {
                 Spacer()
                 Button("取消") { onCancel() }
                 Button("创建") { onCreate() }
-                    .buttonStyle(.borderedProminent)
+                    .glassActionButtonStyle()
             }
         }
         .padding(20)
@@ -254,11 +283,24 @@ struct WeekdayPicker: View {
                 Text(symbols[day - 1])
                     .padding(.horizontal, 6)
                     .padding(.vertical, 4)
-                    .background(isSelected ? Color.accentColor.opacity(0.2) : Color.clear)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .background {
+                        if isSelected {
+                            if #available(macOS 26, *) {
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 8, style: .continuous))
+                            } else {
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(.ultraThinMaterial)
+                            }
+                        } else {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(Color.accentColor.opacity(0.3), lineWidth: 0.5)
+                        }
+                    }
                     .onTapGesture {
                         toggle(day)
                     }
+                    .animation(Glass.animation, value: isSelected)
             }
         }
     }
@@ -290,6 +332,7 @@ struct TimeRangePicker: View {
                 startMinutes = nil
                 endMinutes = nil
             }
+            .glassActionButtonStyle()
         }
     }
 

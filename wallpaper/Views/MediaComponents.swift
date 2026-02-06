@@ -71,12 +71,15 @@ struct MediaCard: View {
                 }
             }
             .clipShape(.rect(cornerRadius: 22, style: .continuous)) // 四角椭圆
+            .glassSelectionRing(isSelected, cornerRadius: 22) // 选中态
+            .contentShape(.rect(cornerRadius: 22, style: .continuous))
 
             Text(item.fileURL.lastPathComponent)
                 .font(.caption)
                 .lineLimit(1)
                 .foregroundStyle(.primary)
         }
+        .animation(Glass.animation, value: isSelected)
     }
 
     private var placeholder: some View {

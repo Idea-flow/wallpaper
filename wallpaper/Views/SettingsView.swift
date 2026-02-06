@@ -16,19 +16,22 @@ struct SettingsView: View {
             VStack(spacing: 20) {
                 // 系统设置
                 GlassSection(title: "系统偏好", icon: "gear.circle.fill") {
-                    Toggle("开机自启", isOn: Binding( // 开机自启
-                        get: { autoLaunchEnabled }, // 获取当前状态
-                        set: { newValue in // 设置新值
-                            setAutoLaunch(newValue) // 应用开机自启
-                        }
-                    ))
+                    capsuleToggle(
+                        title: "开机自启",
+                        isOn: Binding(
+                            get: { autoLaunchEnabled },
+                            set: { newValue in
+                                setAutoLaunch(newValue)
+                            }
+                        )
+                    )
                     Divider().background(.white.opacity(0.1))
-                    Toggle("显示菜单栏图标", isOn: $menuBarEnabled) // 菜单栏
+                    capsuleToggle(title: "显示菜单栏图标", isOn: $menuBarEnabled)
                 }
 
                 // 性能设置
                 GlassSection(title: "性能优化", icon: "bolt.circle.fill") {
-                    Toggle("低功耗模式", isOn: $reduceVideoPower) // 低功耗
+                    capsuleToggle(title: "低功耗模式", isOn: $reduceVideoPower)
                     Text("启用后将减少视频壁纸的帧率以节省电量。")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -55,6 +58,7 @@ struct SettingsView: View {
                         }
                         .pickerStyle(.segmented) // 分段样式
                         .frame(width: 150)
+                        .glassCapsuleBackground()
                     }
                     Divider().background(.white.opacity(0.1))
                     VStack(alignment: .leading, spacing: 12) {
@@ -77,8 +81,9 @@ struct SettingsView: View {
                             }
                             .buttonStyle(.plain)
                         }
-                        if showingCustomPicker {
+            if showingCustomPicker {
                             ColorPicker("自定义颜色", selection: themeColorBinding, supportsOpacity: true)
+                                .padding(.vertical, 4)
                         }
                     }
                 }
@@ -172,7 +177,7 @@ struct GlassSection<Content: View>: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: icon)
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.accentColor)
                     .font(.title3)
                 Text(title)
                     .font(.headline)
@@ -183,17 +188,27 @@ struct GlassSection<Content: View>: View {
             }
         }
         .padding(20)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .glassPanel(cornerRadius: 16)
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.accentColor.opacity(0.35), lineWidth: 0.8)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(.white.opacity(0.18), lineWidth: 0.6)
         )
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
 }
 
 extension SettingsView {
+    private func capsuleToggle(title: String, isOn: Binding<Bool>) -> some View {
+        HStack(spacing: 12) {
+            Text(title)
+            Spacer(minLength: 12)
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
+        }
+        .glassCapsuleBackground()
+    }
+
     private var themePresets: [String] { // 预设主题色
         [
             "#0A84FF", // 蓝

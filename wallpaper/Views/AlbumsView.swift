@@ -131,41 +131,22 @@ struct AlbumDetailView: View {
 
     @State private var showingAddSheet = false // 是否显示添加素材
     @State private var selectedItemIDs = Set<UUID>() // 选择的素材 ID
+    @State private var viewMode: ViewMode = .grid // 视图模式
 
     // 复用网格配置
     private let columns = [
         GridItem(.adaptive(minimum: 140, maximum: 200), spacing: 16)
     ]
 
+    private enum ViewMode: String { // 视图模式
+        case grid // 网格
+        case list // 列表
+    }
+
     var body: some View { // 主体
         VStack(alignment: .leading, spacing: 12) { // 垂直布局
-            HStack { // 顶部栏
-                Text(album.name) // 相册标题
-                    .font(.title2) // 字体
-                Spacer() // 占位
-                Button("添加素材") { // 添加按钮
-                    selectedItemIDs = [] // 清空选择
-                    showingAddSheet = true // 打开弹窗
-                }
-            }
-
-            if album.items.isEmpty { // 空相册
-                ContentUnavailableView("相册为空", systemImage: "rectangle.stack") // 占位
-            } else {
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(album.items) { item in // 遍历素材
-                            MediaCard(item: item, isSelected: false) // 复用 MediaCard，此处暂不支持相册内选中
-                                .contextMenu {
-                                    Button("移出相册", role: .destructive) {
-                                        removeFromAlbum(item)
-                                    }
-                                }
-                        }
-                    }
-                    .padding()
-                }
-            }
+            headerBar // 顶部栏
+            contentSection // 内容区
         }
         .padding() // 内边距
         .sheet(isPresented: $showingAddSheet) { // 添加素材弹窗
@@ -197,6 +178,85 @@ struct AlbumDetailView: View {
                 }
             }
             .frame(minWidth: 520, minHeight: 420) // 弹窗尺寸
+        }
+    }
+
+    private var headerBar: some View { // 顶部栏
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(album.name)
+                    .font(.title2)
+                Text("共 \(album.items.count) 项")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Picker("视图", selection: $viewMode) {
+                Text("网格").tag(ViewMode.grid)
+                Text("列表").tag(ViewMode.list)
+            }
+            .pickerStyle(.segmented)
+            .padding(4)
+            .glassControl(cornerRadius: 10)
+            Button {
+                selectedItemIDs = []
+                showingAddSheet = true
+            } label: {
+                Label("添加素材", systemImage: "plus")
+            }
+            .glassActionButtonStyle()
+        }
+    }
+
+    @ViewBuilder
+    private var contentSection: some View { // 内容区
+        if album.items.isEmpty {
+            ContentUnavailableView("相册为空", systemImage: "rectangle.stack")
+        } else {
+            switch viewMode {
+            case .grid:
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        ForEach(album.items) { item in
+                            MediaCard(item: item, isSelected: false)
+                                .contextMenu {
+                                    Button("移出相册", role: .destructive) {
+                                        removeFromAlbum(item)
+                                    }
+                                }
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+            case .list:
+                List {
+                    ForEach(album.items) { item in
+                        HStack(spacing: 12) {
+                            ThumbnailView(item: item)
+                                .frame(width: 48, height: 36)
+                                .clipShape(.rect(cornerRadius: 6))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(item.fileURL.lastPathComponent)
+                                    .lineLimit(1)
+                                Text(item.type == .video ? "视频" : "图片")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if item.isFavorite {
+                                Image(systemName: "heart.fill")
+                                    .foregroundStyle(.red)
+                            }
+                        }
+                        .contextMenu {
+                            Button("移出相册", role: .destructive) {
+                                removeFromAlbum(item)
+                            }
+                        }
+                    }
+                }
+                .listStyle(.inset)
+            }
         }
     }
 
