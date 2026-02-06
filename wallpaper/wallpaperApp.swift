@@ -1,10 +1,3 @@
-//
-//  wallpaperApp.swift
-//  wallpaper
-//
-//  Created by 王鹏龙 on 2026/2/6.
-//
-
 import SwiftUI
 import SwiftData
 
@@ -12,7 +5,11 @@ import SwiftData
 struct wallpaperApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            MediaItem.self,
+            Album.self,
+            Rule.self,
+            ScreenProfile.self,
+            History.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
