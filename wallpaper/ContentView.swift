@@ -34,6 +34,9 @@ struct ContentView: View {
     @Query(sort: \Album.name, order: .forward) private var albums: [Album] // 相册列表
     @State private var selectedAlbumID: UUID? // 选中相册 ID
     private var selectedAlbum: Album? { albums.first { $0.id == selectedAlbumID } } // 当前相册
+    @Query(sort: \Rule.priority, order: .reverse) private var rules: [Rule] // 规则列表
+    @State private var selectedRuleID: UUID? // 选中规则 ID
+    private var selectedRule: Rule? { rules.first { $0.id == selectedRuleID } } // 当前规则
     @State private var sidebarSelection: SidebarSection = .library // 当前侧栏选择
     @State private var columnVisibility: NavigationSplitViewVisibility = .all // 列显示
     @State private var showingImporter = false // 是否展示导入弹窗
@@ -106,7 +109,7 @@ struct ContentView: View {
         case .albums:
             AlbumsView(selectedAlbumID: $selectedAlbumID) // 相册列表
         case .rules:
-            RulesView() // 规则列表
+            RulesView(selectedRuleID: $selectedRuleID) // 规则列表
         case .settings:
             SettingsView() // 设置放在中间列
         }
@@ -142,7 +145,11 @@ struct ContentView: View {
                     ContentUnavailableView("请选择相册", systemImage: "rectangle.stack") // 无选择占位
                 }
             case .rules:
-                ContentUnavailableView("请选择规则", systemImage: "clock.arrow.circlepath") // 规则占位
+                if let rule = selectedRule { // 有选中规则
+                    RuleDetailView(rule: rule, albums: albums) // 规则详情
+                } else {
+                    ContentUnavailableView("请选择规则", systemImage: "clock.arrow.circlepath") // 规则占位
+                }
             case .settings:
                 EmptyView() // 设置不在详情列显示
             }

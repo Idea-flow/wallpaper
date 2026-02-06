@@ -1,391 +1,243 @@
 import SwiftUI // SwiftUI 界面
 import SwiftData // SwiftData 数据
 
-// RulesView：规则管理
+// RulesView：规则列表（用于中间栏）
 struct RulesView: View {
     @Environment(\.modelContext) private var modelContext // 数据上下文
     @Query(sort: \Rule.priority, order: .reverse) private var rules: [Rule] // 规则列表
-    @Query(sort: \Album.name, order: .forward) private var albums: [Album] // 相册列表
 
-    @State private var editingRule: Rule? // 当前正在编辑的规则
-    @State private var showingAddSheet = false
+    @Binding var selectedRuleID: UUID? // 选中规则 ID
 
-    // 自适应网格布局
-    private let columns = [
-        GridItem(.adaptive(minimum: 340, maximum: 500), spacing: 16)
-    ]
+    @State private var showingCreate = false // 显示新建弹窗
+    @State private var newRuleName = "" // 新规则名称
+    @State private var newRuleInterval = 60 // 新规则间隔
+    @State private var newRuleScope: RuleScope = .global // 新规则范围
+    @State private var newRuleEnabled = true // 新规则启用
 
     var body: some View {
-        GeometryReader { geometry in
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(rules) { rule in
-                        GlassRuleCard(rule: rule)
-                            .onTapGesture {
-                                editingRule = rule
-                            }
-                            .contextMenu {
-                                Button("编辑") { editingRule = rule }
-                                Divider()
-                                Button("删除", role: .destructive) {
-                                    deleteRule(rule)
-                                }
-                            }
-                    }
-
-                    // 添加按钮卡片
-                    Button {
-                        let newRule = Rule()
-                        newRule.name = "新规则 \(rules.count + 1)"
-                        modelContext.insert(newRule)
-                        editingRule = newRule
-                    } label: {
-                        VStack(spacing: 12) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 40))
-                                .foregroundStyle(.secondary)
-                            Text("创建新规则")
-                                .font(.headline)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 180) // 与卡片高度大致一致
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(style: StrokeStyle(lineWidth: 2, dash: [5]))
-                                .foregroundStyle(.secondary.opacity(0.3))
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding()
-                .frame(minHeight: geometry.size.height)
+        List(selection: $selectedRuleID) {
+            ForEach(rules) { rule in
+                RuleListRow(rule: rule)
+                    .tag(rule.id)
             }
-        }
-        .background(Color.clear) // 透明背景以展示壁纸/模糊
-        .sheet(item: $editingRule) { rule in
-            RuleEditorView(rule: rule, albums: albums)
-                .frame(minWidth: 500, minHeight: 600)
+            .onDelete(perform: deleteRules)
         }
         .toolbar {
-            Button(action: {
-                let newRule = Rule()
-                // 默认值
-                newRule.name = "新规则 \(rules.count + 1)"
-                modelContext.insert(newRule)
-                editingRule = newRule
-            }) {
+            Button {
+                newRuleName = ""
+                newRuleInterval = 60
+                newRuleScope = .global
+                newRuleEnabled = true
+                showingCreate = true
+            } label: {
                 Label("新建规则", systemImage: "plus")
             }
         }
+        .sheet(isPresented: $showingCreate) {
+            NewRuleSheet(
+                name: $newRuleName,
+                intervalMinutes: $newRuleInterval,
+                scope: $newRuleScope,
+                enabled: $newRuleEnabled
+            ) {
+                let rule = Rule(
+                    name: newRuleName.isEmpty ? "新规则" : newRuleName,
+                    scope: newRuleScope,
+                    enabled: newRuleEnabled,
+                    intervalMinutes: newRuleInterval
+                )
+                modelContext.insert(rule)
+                selectedRuleID = rule.id
+                showingCreate = false
+            } onCancel: {
+                showingCreate = false
+            }
+            .frame(minWidth: 420, minHeight: 320)
+        }
     }
 
-    private func deleteRule(_ rule: Rule) {
-        modelContext.delete(rule)
-        try? modelContext.save()
+    private func deleteRules(offsets: IndexSet) {
+        for index in offsets {
+            modelContext.delete(rules[index])
+        }
     }
 }
 
-// 玻璃拟态规则卡片
-struct GlassRuleCard: View {
+// RuleListRow：规则列表行
+struct RuleListRow: View {
     @Bindable var rule: Rule
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // 头部：图标+名称+开关
-            HStack(alignment: .top) {
-                ZStack {
-                    Circle()
-                        .fill(rule.enabled ? Color.blue.opacity(0.2) : Color.gray.opacity(0.2))
-                        .frame(width: 44, height: 44)
-
-                    Image(systemName: rule.enabled ? "clock.arrow.circlepath" : "pause.circle")
-                        .font(.title2)
-                        .foregroundStyle(rule.enabled ? .blue : .gray)
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(rule.name ?? "未命名规则")
-                        .font(.headline)
-                        .lineLimit(1)
-                        .foregroundStyle(.primary)
-
-                    Text(rule.enabled ? "运行中" : "已暂停")
-                        .font(.caption)
-                        .foregroundStyle(rule.enabled ? .green : .secondary)
-                }
-
-                Spacer()
-
-                Toggle("", isOn: $rule.enabled)
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-            }
-
-            Divider()
-                .background(.white.opacity(0.2))
-
-            // 信息网格
-            HStack(spacing: 20) {
-                LabelInfoItem(
-                    icon: "arrow.triangle.2.circlepath",
-                    title: "间隔",
-                    value: formatInterval(rule.intervalMinutes)
-                )
-
-                LabelInfoItem(
-                    icon: rule.scope == .global ? "globe" : "display",
-                    title: "范围",
-                    value: rule.scope == .global ? "全局" : "单屏"
-                )
-
-                LabelInfoItem(
-                    icon: "shuffle",
-                    title: "策略",
-                    value: rule.randomStrategyRaw == "uniform" ? "均匀" : "权重"
-                )
-            }
-
-            // 底部：优先级
-            HStack {
-                Text("优先级")
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(rule.name ?? "未命名规则")
+                    .font(.headline)
+                Text(rule.enabled ? "已启用" : "已停用")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                // 简单的进度条表示优先级
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Color.gray.opacity(0.2))
-                        Capsule().fill(Color.blue.gradient)
-                            .frame(width: geo.size.width * (CGFloat(rule.priority) / 10.0))
-                    }
-                }
-                .frame(height: 6)
-
-                Text("\(rule.priority)")
-                    .font(.caption)
-                    .monospacedDigit()
+                    .foregroundStyle(rule.enabled ? .green : .secondary)
             }
-            .padding(.top, 4)
+            Spacer()
+            Toggle("", isOn: $rule.enabled)
+                .labelsHidden()
         }
-        .padding(20)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(.white.opacity(0.2), lineWidth: 0.5)
-        )
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
-        .contentShape(Rectangle()) // 确保整个区域可点击
-    }
-
-    private func formatInterval(_ minutes: Int?) -> String {
-        guard let minutes = minutes else { return "1小时" }
-        if minutes < 60 {
-            return "\(minutes)分钟"
-        } else {
-            return String(format: "%.1f小时", Double(minutes) / 60.0)
-        }
+        .padding(.vertical, 4)
     }
 }
 
-struct LabelInfoItem: View {
-    let icon: String
-    let title: String
-    let value: String
+// RuleSummaryView：规则摘要（保留可复用）
+struct RuleSummaryView: View {
+    @Bindable var rule: Rule
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Text(title)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            Text(value)
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(.primary)
+        VStack(alignment: .leading, spacing: 12) {
+            Text(rule.name ?? "未命名规则").font(.title2)
+            Text("范围：\(rule.scope == .global ? "全局" : "单屏")")
+            Text("切换间隔：\(rule.intervalMinutes ?? 60) 分钟")
+            Text("随机策略：\(rule.randomStrategyRaw)")
+            Text("视频比例：\(Int(rule.mediaMixRatio * 100))%")
+            Spacer()
         }
+        .padding()
     }
 }
 
-// 规则编辑器
-struct RuleEditorView: View {
-    @Environment(\.dismiss) private var dismiss
+// RuleDetailView：规则详细配置
+struct RuleDetailView: View {
     @Bindable var rule: Rule
     let albums: [Album]
+    private let allAlbumID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // 基础信息
-                    GlassSectionWrapper(title: "基础设置", icon: "gearshape.fill") {
-                        TextField("规则名称", text: Binding(
-                            get: { rule.name ?? "" },
-                            set: { rule.name = $0 }
-                        ))
-                        .textFieldStyle(.plain)
-                        .padding(10)
-                        .background(.white.opacity(0.1))
-                        .cornerRadius(8)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                TextField("规则名称", text: nameBinding)
+                    .textFieldStyle(.roundedBorder)
 
-                        Toggle("启用规则", isOn: $rule.enabled)
+                Toggle("启用规则", isOn: $rule.enabled)
 
-                        Divider().background(.white.opacity(0.1))
+                HStack {
+                    Text("切换间隔")
+                    Spacer()
+                    Stepper("\(rule.intervalMinutes ?? 60) 分钟", value: intervalBinding, in: 5...1440, step: 5)
+                }
 
-                        HStack {
-                            Text("优先级 (0-10)")
-                            Spacer()
-                            Text("\(rule.priority)")
-                                .foregroundStyle(.secondary)
-                        }
-                        Slider(value: Binding(
-                            get: { Double(rule.priority) },
-                            set: { rule.priority = Int($0) }
-                        ), in: 0...10, step: 1)
+                HStack {
+                    Text("范围")
+                    Picker("", selection: $rule.scopeRaw) {
+                        Text("全局").tag(RuleScope.global.rawValue)
+                        Text("单屏").tag(RuleScope.screen.rawValue)
                     }
+                    .pickerStyle(.segmented)
+                }
 
-                    // 触发条件
-                    GlassSectionWrapper(title: "触发条件", icon: "timer") {
-                        HStack {
-                            Text("切换间隔")
-                            Spacer()
-                            Stepper("\(rule.intervalMinutes ?? 60) 分钟", value: Binding(
-                                get: { rule.intervalMinutes ?? 60 },
-                                set: { rule.intervalMinutes = $0 }
-                            ), in: 5...1440, step: 5)
-                        }
-
-                        Divider().background(.white.opacity(0.1))
-
-                        TimeRangePicker(
-                            startMinutes: $rule.startMinutes,
-                            endMinutes: $rule.endMinutes
-                        )
-
-                        Divider().background(.white.opacity(0.1))
-
-                        WeekdayPicker(selected: Binding(
-                            get: { Set(rule.weekdays) },
-                            set: { rule.weekdays = Array($0).sorted() }
-                        ))
-                    }
-
-                    // 作用域
-                    GlassSectionWrapper(title: "作用范围 & 内容", icon: "photo.stack") {
-                        Picker("模式", selection: $rule.scopeRaw) {
-                            Text("全局联动").tag(RuleScope.global.rawValue)
-                            Text("独立屏幕").tag(RuleScope.screen.rawValue)
-                        }
-                        .pickerStyle(.segmented)
-
-                        if rule.scope == .screen {
-                            Picker("选择屏幕", selection: Binding(
-                                get: { rule.screenID ?? "" },
-                                set: { rule.screenID = $0.isEmpty ? nil : $0 }
-                            )) {
-                                Text("未选择").tag("")
-                                ForEach(ScreenHelper.screenOptions()) { option in
-                                    Text(option.title).tag(option.id)
-                                }
-                            }
-                        }
-
-                        Divider().background(.white.opacity(0.1))
-
-                        Picker("素材来源 (相册)", selection: Binding(
-                            get: { rule.album?.id },
-                            set: { id in
-                                if let id {
-                                    rule.album = albums.first { $0.id == id }
-                                } else {
-                                    rule.album = nil
-                                }
-                            }
+                if rule.scope == .screen {
+                    HStack {
+                        Text("屏幕")
+                        Picker("", selection: Binding(
+                            get: { rule.screenID ?? "" },
+                            set: { rule.screenID = $0.isEmpty ? nil : $0 }
                         )) {
-                            Text("所有导入素材").tag(Optional<UUID>.none)
-                            ForEach(albums) { album in
-                                Text(album.name).tag(Optional<UUID>.some(album.id))
-                            }
-                        }
-                    }
-
-                    // 播放策略
-                    GlassSectionWrapper(title: "播放策略", icon: "shuffle") {
-                        Picker("随机算法", selection: $rule.randomStrategyRaw) {
-                            Text("完全随机").tag(RandomStrategy.uniform.rawValue)
-                            Text("加权随机").tag(RandomStrategy.weighted.rawValue)
-                            Text("避免重复").tag(RandomStrategy.avoidRecent.rawValue)
-                        }
-                        .pickerStyle(.segmented)
-
-                        Divider().background(.white.opacity(0.1))
-
-                        VStack(alignment: .leading) {
-                            HStack {
-                                Text("视频/图片 混合比例")
-                                Spacer()
-                                Text(String(format: "%.0f%% 视频", rule.mediaMixRatio * 100))
-                                    .foregroundStyle(.secondary)
-                            }
-                            Slider(value: $rule.mediaMixRatio, in: 0...1, step: 0.1) {
-                                Text("Ratio")
-                            } minimumValueLabel: {
-                                Image(systemName: "photo")
-                            } maximumValueLabel: {
-                                Image(systemName: "film")
+                            ForEach(ScreenHelper.screenOptions()) { option in
+                                Text(option.title).tag(option.id)
                             }
                         }
                     }
                 }
-                .padding()
-            }
-            .background(Color.clear)
-            .navigationTitle(rule.name ?? "编辑规则")
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }
+
+                HStack {
+                    Text("相册")
+                    Picker("", selection: Binding(
+                        get: { rule.album?.id ?? allAlbumID },
+                        set: { newValue in
+                            rule.album = newValue == allAlbumID ? nil : albums.first { $0.id == newValue }
+                        }
+                    )) {
+                        Text("全部素材").tag(allAlbumID)
+                        ForEach(albums) { album in
+                            Text(album.name).tag(album.id)
+                        }
+                    }
+                }
+
+                WeekdayPicker(selected: Binding(
+                    get: { Set(rule.weekdays) },
+                    set: { rule.weekdays = Array($0).sorted() }
+                ))
+
+                TimeRangePicker(
+                    startMinutes: $rule.startMinutes,
+                    endMinutes: $rule.endMinutes
+                )
+
+                HStack {
+                    Text("随机策略")
+                    Picker("", selection: $rule.randomStrategyRaw) {
+                        Text("均匀").tag(RandomStrategy.uniform.rawValue)
+                        Text("权重").tag(RandomStrategy.weighted.rawValue)
+                        Text("避免近期重复").tag(RandomStrategy.avoidRecent.rawValue)
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                HStack {
+                    Text("视频比例")
+                    Slider(value: $rule.mediaMixRatio, in: 0...1, step: 0.1)
+                    Text(String(format: "%.0f%%", rule.mediaMixRatio * 100))
+                        .frame(width: 60, alignment: .trailing)
                 }
             }
-            .background(.thinMaterial)
+            .padding()
         }
-        .presentationBackground(.ultraThinMaterial) // 弹窗背景也是毛玻璃
     }
 }
 
-// 辅助组件 GlassSectionWrapper
-struct GlassSectionWrapper<Content: View>: View {
-    let title: String
-    let icon: String
-    @ViewBuilder let content: Content
+// NewRuleSheet：新建规则弹窗
+struct NewRuleSheet: View {
+    @Binding var name: String
+    @Binding var intervalMinutes: Int
+    @Binding var scope: RuleScope
+    @Binding var enabled: Bool
+
+    let onCreate: () -> Void
+    let onCancel: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            Text("新建规则")
+                .font(.title2)
+
+            TextField("规则名称", text: $name)
+                .textFieldStyle(.roundedBorder)
+
+            Toggle("启用规则", isOn: $enabled)
+
             HStack {
-                Image(systemName: icon)
-                    .foregroundStyle(.blue)
-                    .font(.headline)
-                Text(title)
-                    .font(.headline)
+                Text("切换间隔")
+                Spacer()
+                Stepper("\(intervalMinutes) 分钟", value: $intervalMinutes, in: 5...1440, step: 5)
             }
 
-            VStack(alignment: .leading, spacing: 12) {
-                content
+            HStack {
+                Text("范围")
+                Picker("", selection: $scope) {
+                    Text("全局").tag(RuleScope.global)
+                    Text("单屏").tag(RuleScope.screen)
+                }
+                .pickerStyle(.segmented)
+            }
+
+            Spacer()
+
+            HStack {
+                Spacer()
+                Button("取消") { onCancel() }
+                Button("创建") { onCreate() }
+                    .buttonStyle(.borderedProminent)
             }
         }
-        .padding(16)
-        .background(Color.black.opacity(0.05)) // 稍微深一点的背景区分层级
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(.white.opacity(0.1), lineWidth: 0.5)
-        )
+        .padding(20)
+        .glassSurface(cornerRadius: 16)
+        .padding()
     }
 }
 
@@ -465,5 +317,21 @@ struct TimeRangePicker: View {
     private func dateToMinutes(_ date: Date) -> Int {
         let calendar = Calendar.current
         return calendar.component(.hour, from: date) * 60 + calendar.component(.minute, from: date)
+    }
+}
+
+extension RuleDetailView {
+    private var nameBinding: Binding<String> {
+        Binding(
+            get: { rule.name ?? "新规则" },
+            set: { rule.name = $0.isEmpty ? "新规则" : $0 }
+        )
+    }
+
+    private var intervalBinding: Binding<Int> {
+        Binding(
+            get: { rule.intervalMinutes ?? 60 },
+            set: { rule.intervalMinutes = $0 }
+        )
     }
 }
