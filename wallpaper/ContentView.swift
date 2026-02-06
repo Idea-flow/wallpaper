@@ -254,8 +254,8 @@ struct ThumbnailView: View {
     var body: some View { // 视图
         ZStack { // 叠放
             if item.type == .image { // 图片类型
-                let result = MediaAccessService.loadImageResult(for: item) // 读取结果
-                if let image = result.image { // 读取成功
+                let thumbnail = MediaAccessService.loadThumbnail(for: item, targetSize: CGSize(width: 48, height: 36)) // 缩略图
+                if let image = thumbnail { // 读取成功
                     Image(nsImage: image) // 显示图片
                         .resizable() // 可拉伸
                         .scaledToFill() // 填充
@@ -270,11 +270,6 @@ struct ThumbnailView: View {
                             .foregroundStyle(.secondary) // 次级颜色
                             .lineLimit(1) // 单行
                     }
-                    .onAppear { // 进入时打印日志
-                        if let reason = result.reason { // 有原因
-                            NSLog("[预览-列表] \(reason)") // 日志
-                        }
-                    }
                 }
             } else { // 非图片（视频或其他）
                 Rectangle() // 占位背景
@@ -288,6 +283,7 @@ struct ThumbnailView: View {
 
 // MediaDetailView：素材详情与预览
 struct MediaDetailView: View {
+    @Environment(\.modelContext) private var modelContext // 数据上下文
     @Bindable var item: MediaItem // 素材（可编辑）
     @Binding var fitMode: FitMode // 适配模式
     @Binding var selectedScreenID: String // 选择屏幕
@@ -353,6 +349,11 @@ struct MediaDetailView: View {
                                 .multilineTextAlignment(.center) // 居中
                                 .padding(.horizontal, 16) // 左右内边距
                                 .lineLimit(3) // 最多三行
+                            if isPermissionIssue(reason) { // 权限问题
+                                Button("重新授权文件") { // 重新授权
+                                    reselectFile() // 重新选择
+                                }
+                            }
                         }
                     }
                     .onAppear { // 进入时打印日志
@@ -431,6 +432,11 @@ struct MediaDetailView: View {
             Stepper("评分：\(item.rating)", value: $item.rating, in: 0...5) // 评分
             TextField("标签（逗号分隔）", text: $item.tags) // 标签输入
                 .textFieldStyle(.roundedBorder) // 输入框样式
+            if item.type == .video { // 视频权限按钮
+                Button("重新授权视频文件") { // 重新授权
+                    reselectFile() // 重新选择
+                }
+            }
         }
     }
 
@@ -477,42 +483,36 @@ struct MediaDetailView: View {
                 .clipped() // 裁剪溢出
         }
     }
+
+    private func isPermissionIssue(_ reason: String) -> Bool { // 判断权限问题
+        reason.contains("权限") || reason.contains("不可读") || reason.contains("安全访问失败")
+    }
+
+    private func reselectFile() { // 重新选择文件
+        let panel = NSOpenPanel() // 打开面板
+        panel.canChooseFiles = true // 可选文件
+        panel.canChooseDirectories = false // 不选目录
+        panel.allowsMultipleSelection = false // 单选
+        if item.type == .image { // 图片
+            panel.allowedContentTypes = [.image] // 允许图片
+        } else if item.type == .video { // 视频
+            panel.allowedContentTypes = [.movie] // 允许视频
+        }
+        if panel.runModal() == .OK, let url = panel.url { // 用户选择
+            do {
+                try MediaImportService.updateItem(item, from: url) // 更新素材
+                try? modelContext.save() // 保存
+                NSLog("[权限] 重新授权成功：\(url.lastPathComponent)") // 日志
+            } catch {
+                NSLog("[权限] 重新授权失败：\(error.localizedDescription)") // 日志
+            }
+        }
+    }
 }
 
 #Preview { // 预览
     ContentView() // 预览内容
         .modelContainer(for: MediaItem.self, inMemory: true) // 使用内存模型
-}
-
-// ScreenOption：屏幕选项
-struct ScreenOption: Identifiable { // 可识别
-    let id: String // 屏幕 ID
-    let title: String // 显示名称
-}
-
-// ScreenHelper：屏幕相关工具
-struct ScreenHelper { // 工具结构
-    // screenOptions：生成屏幕选项
-    static func screenOptions() -> [ScreenOption] { // 返回屏幕列表
-        NSScreen.screens.map { screen in // 遍历屏幕
-            let id = screenIdentifier(screen) // 屏幕 ID
-            let title = "\(screen.localizedName) · \(id)" // 显示名称
-            return ScreenOption(id: id, title: title) // 返回选项
-        }
-    }
-
-    // screenByID：通过 ID 找到屏幕
-    static func screenByID(_ id: String) -> NSScreen? { // 通过 ID 查找
-        NSScreen.screens.first { screenIdentifier($0) == id } // 匹配 ID
-    }
-
-    // screenIdentifier：获取屏幕唯一 ID
-    static func screenIdentifier(_ screen: NSScreen) -> String { // 屏幕 ID
-        if let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber { // 读取编号
-            return number.stringValue // 返回编号
-        }
-        return screen.localizedName // 回退到名称
-    }
 }
 
 // View 扩展：封装 Liquid Glass 样式
@@ -563,8 +563,8 @@ struct MediaCard: View {
         VStack(alignment: .leading, spacing: 0) {
             ZStack {
                 if item.type == .image {
-                    let result = MediaAccessService.loadImageResult(for: item)
-                    if let image = result.image {
+                    let thumbnail = MediaAccessService.loadThumbnail(for: item, targetSize: CGSize(width: 200, height: 120))
+                    if let image = thumbnail {
                         Image(nsImage: image)
                             .resizable()
                             .aspectRatio(contentMode: .fill)

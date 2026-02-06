@@ -105,35 +105,47 @@ final class Album {
 @Model
 final class Rule {
     var id: UUID // 唯一 ID
+    var name: String? // 规则名称
     var scopeRaw: String // 作用范围
+    var screenID: String? // 目标屏幕 ID（仅单屏）
     var priority: Int // 优先级
     var enabled: Bool // 是否启用
+    var intervalMinutes: Int? // 切换间隔（分钟）
     var weekdaysRaw: String // 工作日配置
     var startMinutes: Int? // 开始时间
     var endMinutes: Int? // 结束时间
     var randomStrategyRaw: String // 随机策略
     var mediaMixRatio: Double // 图片/视频比例
+    @Relationship(deleteRule: .nullify) var album: Album? // 关联相册
 
     init( // 初始化
         id: UUID = UUID(), // 默认 ID
+        name: String? = "新规则", // 名称
         scope: RuleScope = .global, // 作用范围
+        screenID: String? = nil, // 屏幕 ID
         priority: Int = 0, // 优先级
         enabled: Bool = true, // 是否启用
+        intervalMinutes: Int? = 60, // 间隔
         weekdaysRaw: String = "", // 工作日
         startMinutes: Int? = nil, // 开始时间
         endMinutes: Int? = nil, // 结束时间
         randomStrategy: RandomStrategy = .uniform, // 随机策略
-        mediaMixRatio: Double = 0.5 // 比例
+        mediaMixRatio: Double = 0.5, // 比例
+        album: Album? = nil // 相册
     ) {
         self.id = id // 赋值
+        self.name = name // 赋值
         self.scopeRaw = scope.rawValue // 赋值
+        self.screenID = screenID // 赋值
         self.priority = priority // 赋值
         self.enabled = enabled // 赋值
+        self.intervalMinutes = intervalMinutes // 赋值
         self.weekdaysRaw = weekdaysRaw // 赋值
         self.startMinutes = startMinutes // 赋值
         self.endMinutes = endMinutes // 赋值
         self.randomStrategyRaw = randomStrategy.rawValue // 赋值
         self.mediaMixRatio = mediaMixRatio // 赋值
+        self.album = album // 赋值
     }
 
     var scope: RuleScope { // 作用范围
@@ -144,6 +156,17 @@ final class Rule {
     var randomStrategy: RandomStrategy { // 随机策略
         get { RandomStrategy(rawValue: randomStrategyRaw) ?? .uniform } // 读取
         set { randomStrategyRaw = newValue.rawValue } // 写入
+    }
+
+    var weekdays: [Int] { // 工作日数组（1-7）
+        get {
+            weekdaysRaw
+                .split(separator: ",")
+                .compactMap { Int($0) }
+        }
+        set {
+            weekdaysRaw = newValue.map(String.init).joined(separator: ",")
+        }
     }
 }
 

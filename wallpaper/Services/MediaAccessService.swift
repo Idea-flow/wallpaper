@@ -61,6 +61,20 @@ struct MediaAccessService {
         loadImageResult(for: item).image // 复用带原因的方法
     }
 
+    // loadThumbnail：读取缩略图并缓存
+    static func loadThumbnail(for item: MediaItem, targetSize: CGSize) -> NSImage? {
+        let key = "\(item.fileURL.path)-\(Int(targetSize.width))x\(Int(targetSize.height))" // 缓存键
+        if let cached = ThumbnailCache.shared.image(forKey: key) { // 命中缓存
+            return cached // 返回缓存
+        }
+        let result = loadImageResult(for: item) // 读取原图
+        guard let image = result.image else { return nil } // 失败返回
+
+        let thumbnail = imageByScaling(image, to: targetSize) // 缩放图片
+        ThumbnailCache.shared.setImage(thumbnail, forKey: key) // 写入缓存
+        return thumbnail // 返回缩略图
+    }
+
     // loadImageResult：读取图片，并返回失败原因
     static func loadImageResult(for item: MediaItem) -> ImageLoadResult {
         let fileURL = item.fileURL // 原始路径
@@ -137,5 +151,13 @@ struct MediaAccessService {
                 }
             })
         }
+    }
+
+    private static func imageByScaling(_ image: NSImage, to target: CGSize) -> NSImage { // 缩放图片
+        let newImage = NSImage(size: target) // 新图
+        newImage.lockFocus() // 开始绘制
+        image.draw(in: NSRect(origin: .zero, size: target), from: .zero, operation: .copy, fraction: 1.0) // 绘制
+        newImage.unlockFocus() // 结束绘制
+        return newImage // 返回
     }
 }

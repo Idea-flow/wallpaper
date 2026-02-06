@@ -15,6 +15,13 @@ struct LibraryView: View {
     let onImport: () -> Void // 导入回调
     @State private var showingTagEditor = false // 是否显示标签弹窗
     @State private var tagInput = "" // 标签输入
+    @State private var viewMode: ViewMode = .grid // 视图模式
+
+    // ViewMode：视图模式
+    private enum ViewMode: String { // 可选类型
+        case grid // 网格
+        case list // 列表
+    }
 
     // 定义网格列布局
     private let columns = [
@@ -22,31 +29,43 @@ struct LibraryView: View {
     ]
 
     var body: some View { // 主体
-        GeometryReader { geometry in
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(filteredItems) { item in
-                        MediaCard(item: item, isSelected: selectionIDs.contains(item.id))
-                            .onTapGesture {
-                                handleSelection(item)
+        Group {
+            if viewMode == .grid { // 网格模式
+                GeometryReader { geometry in
+                    ScrollView {
+                        LazyVGrid(columns: columns, spacing: 16) {
+                            ForEach(filteredItems) { item in
+                                MediaCard(item: item, isSelected: selectionIDs.contains(item.id))
+                                    .onTapGesture {
+                                        handleSelection(item)
+                                    }
+                                    .contextMenu {
+                                        Button("标记收藏") {
+                                            item.isFavorite.toggle()
+                                            try? modelContext.save()
+                                        }
+                                        Button("删除", role: .destructive) {
+                                            modelContext.delete(item)
+                                            try? modelContext.save()
+                                        }
+                                    }
                             }
-                            .contextMenu {
-                                Button("标记收藏") {
-                                    item.isFavorite.toggle()
-                                    try? modelContext.save()
-                                }
-                                Button("删除", role: .destructive) {
-                                    modelContext.delete(item)
-                                    try? modelContext.save()
-                                }
-                            }
+                        }
+                        .padding()
                     }
+                    .frame(width: geometry.size.width, height: geometry.size.height)
                 }
-                .padding()
+                .background(Color.clear) // 确保背景透明以透出 Liquid Glass 效果
+            } else { // 列表模式
+                List(selection: $selectionIDs) {
+                    ForEach(filteredItems) { item in
+                        MediaRow(item: item)
+                            .tag(item.id)
+                    }
+                    .onDelete(perform: deleteItems)
+                }
             }
-            .frame(width: geometry.size.width, height: geometry.size.height)
         }
-        .background(Color.clear) // 确保背景透明以透出 Liquid Glass 效果
         .searchable(text: $searchText, prompt: "搜索文件名/标签") // 搜索框
         .toolbar { // 工具栏
             Button { // 导入按钮
@@ -54,6 +73,12 @@ struct LibraryView: View {
             } label: {
                 Label("导入素材", systemImage: "plus") // 文案
             }
+
+            Picker("视图", selection: $viewMode) {
+                Text("网格").tag(ViewMode.grid)
+                Text("列表").tag(ViewMode.list)
+            }
+            .pickerStyle(.segmented)
 
             if !selectionIDs.isEmpty { // 有选择时显示批量操作
                 Menu { // 批量操作菜单

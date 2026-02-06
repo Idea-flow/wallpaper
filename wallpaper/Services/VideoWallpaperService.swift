@@ -15,6 +15,11 @@ final class VideoWallpaperService {
 
     private var entries: [ObjectIdentifier: Entry] = [:] // 屏幕对应的播放条目
     private var accessToken: MediaAccessService.AccessToken? // 长期安全访问令牌
+    private var currentItem: MediaItem? // 当前视频素材
+    private var currentFitMode: FitMode = .fill // 当前适配模式
+    private var currentScreenID: String? // 当前目标屏幕
+    private var screenObserver: Any? // 屏幕变化监听
+    private var isReapplying = false // 防止重复重建
 
     private init() {} // 禁止外部初始化
 
@@ -34,6 +39,10 @@ final class VideoWallpaperService {
 
         stopAll() // 启动前清理旧的播放
         accessToken = token // 保存访问令牌
+        currentItem = item // 保存当前素材
+        currentFitMode = fitMode // 保存当前模式
+        currentScreenID = screenID // 保存当前目标
+        startScreenObserver() // 监听屏幕变化
 
         for screen in targetScreens { // 遍历目标屏幕
             let gravity = videoGravity(for: fitMode) // 计算视频适配方式
@@ -136,5 +145,31 @@ final class VideoWallpaperService {
             return number.stringValue // 返回编号
         }
         return screen.localizedName // 回退到名称
+    }
+
+    // startScreenObserver：监听屏幕变化并重建视频壁纸
+    private func startScreenObserver() { // 屏幕监听
+        guard screenObserver == nil else { return } // 避免重复注册
+        screenObserver = NotificationCenter.default.addObserver( // 注册监听
+            forName: NSApplication.didChangeScreenParametersNotification, // 屏幕变化
+            object: nil, // 全局
+            queue: .main // 主线程
+        ) { [weak self] _ in
+            self?.reapplyIfNeeded() // 重新应用
+        }
+    }
+
+    // reapplyIfNeeded：屏幕变化时重建
+    private func reapplyIfNeeded() { // 重新应用
+        guard !isReapplying else { return } // 防止递归
+        guard let item = currentItem else { return } // 没有视频
+        isReapplying = true // 标记
+        defer { isReapplying = false } // 结束恢复
+        NSLog("[视频壁纸] 屏幕变化，准备重建视频壁纸") // 日志
+        do {
+            try applyVideo(item: item, fitMode: currentFitMode, screenID: currentScreenID) // 重建
+        } catch {
+            NSLog("[视频壁纸] 重建失败：\(error.localizedDescription)") // 日志
+        }
     }
 }

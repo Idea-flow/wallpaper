@@ -7,6 +7,7 @@ struct wallpaperApp: App {
     @AppStorage("menuBarEnabled") private var menuBarEnabled = false // 菜单栏开关
     @AppStorage("themeColorHex") private var themeColorHex = ThemeColor.defaultHex // 主题色
     @AppStorage("themeMode") private var themeMode = "system" // 主题模式
+    @State private var rulesStarted = false // 规则调度是否启动
 
     var sharedModelContainer: ModelContainer = { // 共享数据库容器
         let schema = Schema([ // 定义数据模型
@@ -30,6 +31,12 @@ struct wallpaperApp: App {
             ContentView() // 主界面
                 .tint(ThemeColor.color(from: themeColorHex)) // 应用主题色
                 .preferredColorScheme(preferredScheme) // 应用主题模式
+                .task { // 启动规则调度
+                    if !rulesStarted { // 避免重复
+                        RuleScheduler.shared.start(container: sharedModelContainer) // 启动调度
+                        rulesStarted = true // 标记启动
+                    }
+                }
         }
         .modelContainer(sharedModelContainer) // 注入数据容器
 

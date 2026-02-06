@@ -8,6 +8,7 @@ struct SettingsView: View {
     @AppStorage("themeColorHex") private var themeColorHex = ThemeColor.defaultHex // 主题色
     @AppStorage("themeMode") private var themeMode = "system" // 主题模式
     @State private var alertMessage: String? // 错误提示
+    @State private var showingClearCacheConfirm = false // 清理确认弹窗
 
     var body: some View { // 主体
         ScrollView {
@@ -30,6 +31,15 @@ struct SettingsView: View {
                     Text("启用后将减少视频壁纸的帧率以节省电量。")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    HStack {
+                        Text("缩略图缓存") // 标题
+                        Spacer()
+                        Text(cacheSizeText) // 缓存大小
+                            .foregroundStyle(.secondary)
+                    }
+                    Button("清理缩略图缓存") { // 清理缓存
+                        showingClearCacheConfirm = true // 显示确认
+                    }
                 }
 
                 // 外观设置
@@ -84,6 +94,15 @@ struct SettingsView: View {
         } message: {
             Text(alertMessage ?? "") // 错误内容
         }
+        .alert("确认清理缓存？", isPresented: $showingClearCacheConfirm) { // 清理确认
+            Button("清理", role: .destructive) { // 确认清理
+                ThumbnailCache.shared.clear() // 清空缓存
+                NSLog("[设置] 已清理缩略图缓存") // 日志
+            }
+            Button("取消", role: .cancel) { } // 取消
+        } message: {
+            Text("将清空本地缩略图缓存。") // 提示
+        }
     }
 
     private func setAutoLaunch(_ enabled: Bool) { // 设置开机自启
@@ -108,6 +127,14 @@ struct SettingsView: View {
                 NSLog("[设置] 主题色更新：\(themeColorHex)") // 日志
             }
         )
+    }
+
+    private var cacheSizeText: String { // 缓存大小文本
+        let bytes = ThumbnailCache.shared.estimatedSizeBytes() // 估算大小
+        let formatter = ByteCountFormatter() // 格式化
+        formatter.allowedUnits = [.useKB, .useMB, .useGB] // 单位
+        formatter.countStyle = .file // 文件样式
+        return formatter.string(fromByteCount: Int64(bytes)) // 返回
     }
 }
 
@@ -141,5 +168,3 @@ struct GlassSection<Content: View>: View {
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
 }
-
-
