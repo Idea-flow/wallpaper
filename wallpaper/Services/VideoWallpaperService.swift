@@ -10,6 +10,7 @@ final class VideoWallpaperService {
     struct Entry {
         let window: NSWindow // 承载视频的窗口
         let player: AVPlayer // 视频播放器
+        let endObserver: Any // 循环播放监听
     }
 
     private var entries: [ObjectIdentifier: Entry] = [:] // 屏幕对应的播放条目
@@ -34,6 +35,7 @@ final class VideoWallpaperService {
             let asset = AVURLAsset(url: token.url) // 创建视频资源
             let playerItem = AVPlayerItem(asset: asset) // 创建播放条目
             let player = AVPlayer(playerItem: playerItem) // 创建播放器
+            player.actionAtItemEnd = .none // 播放结束不自动停止
 
             let view = NSView(frame: window.contentView?.bounds ?? .zero) // 创建容器视图
             view.wantsLayer = true // 启用图层
@@ -48,8 +50,17 @@ final class VideoWallpaperService {
             window.orderBack(nil) // 放到桌面层
             player.play() // 播放视频
 
+            let endObserver = NotificationCenter.default.addObserver( // 监听播放结束
+                forName: .AVPlayerItemDidPlayToEndTime, // 播放结束通知
+                object: playerItem, // 仅监听当前条目
+                queue: .main // 主线程
+            ) { _ in
+                player.seek(to: .zero) // 回到起点
+                player.play() // 继续播放
+            }
+
             let key = ObjectIdentifier(screen) // 生成屏幕标识
-            entries[key] = Entry(window: window, player: player) // 保存条目
+            entries[key] = Entry(window: window, player: player, endObserver: endObserver) // 保存条目
         }
     }
 
@@ -59,6 +70,7 @@ final class VideoWallpaperService {
             print("[视频壁纸] 停止所有视频壁纸") // 关键步骤日志
         }
         for entry in entries.values { // 遍历条目
+            NotificationCenter.default.removeObserver(entry.endObserver) // 移除监听
             entry.player.pause() // 暂停播放
             entry.window.orderOut(nil) // 隐藏窗口
         }
