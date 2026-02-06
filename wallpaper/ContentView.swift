@@ -148,6 +148,7 @@ struct ContentView: View {
 
         do {
             if item.type == .image { // 图片壁纸
+                VideoWallpaperService.shared.stopAll() // 切换到图片时停止视频壁纸
                 try MediaAccessService.withResolvedURL(for: item) { url in // 使用安全路径
                     try WallpaperService.applyImage(url: url, to: nil, fitMode: fitMode) // 设置壁纸
                 }
