@@ -5,10 +5,10 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     enum SidebarSection: String, CaseIterable, Identifiable {
-        case library = "Library"
-        case albums = "Albums"
-        case rules = "Rules"
-        case settings = "Settings"
+        case library = "素材库"
+        case albums = "相册"
+        case rules = "规则"
+        case settings = "设置"
 
         var id: String { rawValue }
         var systemImage: String {
@@ -29,6 +29,7 @@ struct ContentView: View {
     @State private var showingImporter = false
     @State private var alertMessage: String?
     @State private var isSettingWallpaper = false
+    @State private var selectedFitMode: FitMode = .fill
 
     var body: some View {
         NavigationSplitView {
@@ -52,7 +53,7 @@ struct ContentView: View {
         }
         .fileImporter(
             isPresented: $showingImporter,
-            allowedContentTypes: [.image, .movie],
+            allowedContentTypes: [.image],
             allowsMultipleSelection: true
         ) { result in
             handleImport(result)
@@ -61,7 +62,7 @@ struct ContentView: View {
             get: { alertMessage != nil },
             set: { _ in alertMessage = nil }
         )) {
-            Button("OK") { alertMessage = nil }
+            Button("好") { alertMessage = nil }
         } message: {
             Text(alertMessage ?? "")
         }
@@ -79,7 +80,7 @@ struct ContentView: View {
             Button {
                 showingImporter = true
             } label: {
-                Label("Import", systemImage: "plus")
+                Label("导入图片", systemImage: "plus")
             }
         }
     }
@@ -87,11 +88,15 @@ struct ContentView: View {
     private var detailView: some View {
         Group {
             if let item = selection {
-                MediaDetailView(item: item, isSettingWallpaper: $isSettingWallpaper) {
-                    applyWallpaper(for: item)
+                MediaDetailView(
+                    item: item,
+                    fitMode: $selectedFitMode,
+                    isSettingWallpaper: $isSettingWallpaper
+                ) {
+                    applyWallpaper(for: item, fitMode: selectedFitMode)
                 }
             } else {
-                ContentUnavailableView("Select an item", systemImage: "photo")
+                ContentUnavailableView("请选择一张图片", systemImage: "photo")
             }
         }
         .padding()
@@ -114,7 +119,7 @@ struct ContentView: View {
                 importOne(url)
             }
         case .failure(let error):
-            alertMessage = "Import failed: \(error.localizedDescription)"
+            alertMessage = "导入失败：\(error.localizedDescription)"
         }
     }
 
@@ -123,7 +128,7 @@ struct ContentView: View {
             let result = try MediaImportService.importMedia(from: url)
             modelContext.insert(result.item)
         } catch {
-            alertMessage = "Import failed: \(url.lastPathComponent)"
+            alertMessage = "导入失败：\(url.lastPathComponent)"
         }
     }
 
@@ -133,23 +138,23 @@ struct ContentView: View {
         }
     }
 
-    private func applyWallpaper(for item: MediaItem) {
+    private func applyWallpaper(for item: MediaItem, fitMode: FitMode) {
         isSettingWallpaper = true
         defer { isSettingWallpaper = false }
 
         do {
             if item.type == .image {
                 try MediaAccessService.withResolvedURL(for: item) { url in
-                    try WallpaperService.applyImage(url: url, to: nil)
+                    try WallpaperService.applyImage(url: url, to: nil, fitMode: fitMode)
                 }
-                alertMessage = "Wallpaper applied to all screens."
+                alertMessage = "已应用到所有屏幕。"
             } else {
                 try WallpaperService.applyVideoPlaceholder()
             }
         } catch {
             alertMessage = item.type == .video
-                ? "Video wallpaper is not enabled yet."
-                : "Failed to apply wallpaper."
+                ? "视频壁纸尚未启用。"
+                : "设置壁纸失败：\(error.localizedDescription)"
         }
     }
 }
@@ -180,14 +185,14 @@ struct MediaRow: View {
             let width = item.width.map { Int($0) }
             let height = item.height.map { Int($0) }
             if let width, let height {
-                return "Image · \(width)x\(height)"
+                return "图片 · \(width)x\(height)"
             }
-            return "Image"
+            return "图片"
         case .video:
             if let duration = item.duration {
-                return "Video · \(formatDuration(duration))"
+                return "视频 · \(formatDuration(duration))"
             }
-            return "Video"
+            return "视频"
         }
     }
 
@@ -204,7 +209,7 @@ struct ThumbnailView: View {
 
     var body: some View {
         ZStack {
-            if item.type == .image, let image = NSImage(contentsOf: item.fileURL) {
+            if item.type == .image, let image = loadImage() {
                 Image(nsImage: image)
                     .resizable()
                     .scaledToFill()
@@ -216,21 +221,31 @@ struct ThumbnailView: View {
             }
         }
     }
+
+    private func loadImage() -> NSImage? {
+        try? MediaAccessService.withResolvedURL(for: item) { url in
+            NSImage(contentsOf: url)
+        }
+    }
 }
 
 struct MediaDetailView: View {
     let item: MediaItem
+    @Binding var fitMode: FitMode
     @Binding var isSettingWallpaper: Bool
     let onApply: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            if item.type == .image {
+                fitModePicker
+            }
             preview
             HStack {
                 Button {
                     onApply()
                 } label: {
-                    Label(isSettingWallpaper ? "Applying..." : "Set as Wallpaper", systemImage: "sparkles")
+                    Label(isSettingWallpaper ? "设置中..." : "设为壁纸", systemImage: "sparkles")
                 }
                 .glassActionButtonStyle()
                 .disabled(isSettingWallpaper)
@@ -238,7 +253,7 @@ struct MediaDetailView: View {
                 Spacer()
 
                 if item.isFavorite {
-                    Label("Favorite", systemImage: "heart.fill")
+                    Label("已收藏", systemImage: "heart.fill")
                         .foregroundStyle(.red)
                 }
             }
@@ -250,20 +265,33 @@ struct MediaDetailView: View {
 
     private var preview: some View {
         Group {
-            if item.type == .image, let image = NSImage(contentsOf: item.fileURL) {
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFit()
+            if item.type == .image, let image = loadImage() {
+                imagePreview(image)
                     .clipShape(.rect(cornerRadius: 12))
             } else if item.type == .video {
                 VideoPlayerView(url: item.fileURL, isMuted: true)
                     .clipShape(.rect(cornerRadius: 12))
             } else {
-                ContentUnavailableView("Preview not available", systemImage: "photo")
+                ContentUnavailableView("无法预览", systemImage: "photo")
             }
         }
         .frame(maxWidth: .infinity, minHeight: 260)
         .glassSurface(cornerRadius: 12)
+    }
+
+    private var fitModePicker: some View {
+        HStack(spacing: 12) {
+            Text("适配模式")
+                .foregroundStyle(.secondary)
+            Picker("", selection: $fitMode) {
+                Text("填充").tag(FitMode.fill)
+                Text("适应").tag(FitMode.fit)
+                Text("拉伸").tag(FitMode.stretch)
+                Text("居中").tag(FitMode.center)
+                Text("平铺").tag(FitMode.tile)
+            }
+            .pickerStyle(.segmented)
+        }
     }
 
     private var metadata: some View {
@@ -298,6 +326,39 @@ struct MediaDetailView: View {
         formatter.allowedUnits = [.useMB, .useGB]
         formatter.countStyle = .file
         return formatter.string(fromByteCount: bytes)
+    }
+
+    private func loadImage() -> NSImage? {
+        try? MediaAccessService.withResolvedURL(for: item) { url in
+            NSImage(contentsOf: url)
+        }
+    }
+
+    @ViewBuilder
+    private func imagePreview(_ image: NSImage) -> some View {
+        switch fitMode {
+        case .fill:
+            Image(nsImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+        case .fit:
+            Image(nsImage: image)
+                .resizable()
+                .scaledToFit()
+        case .stretch:
+            Image(nsImage: image)
+                .resizable()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+        case .center:
+            Image(nsImage: image)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        case .tile:
+            Rectangle()
+                .fill(ImagePaint(image: Image(nsImage: image), scale: 1))
+        }
     }
 }
 

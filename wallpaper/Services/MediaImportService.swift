@@ -8,6 +8,13 @@ struct MediaImportService {
     }
 
     static func importMedia(from url: URL) throws -> ImportResult {
+        let didAccess = url.startAccessingSecurityScopedResource()
+        defer {
+            if didAccess {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+
         let type = detectType(for: url)
         let bookmarkData = try? url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
         let sizeBytes = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).map { Int64($0) }
