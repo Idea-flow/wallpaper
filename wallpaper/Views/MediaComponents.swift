@@ -44,67 +44,39 @@ struct MediaCard: View {
     let isSelected: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 8) {
             ZStack {
                 if item.type == .image {
-                    let thumbnail = MediaAccessService.loadThumbnail(for: item, targetSize: CGSize(width: 200, height: 120))
+                    let thumbnail = MediaAccessService.loadThumbnail(for: item, targetSize: CGSize(width: 240, height: 160))
                     if let image = thumbnail {
                         Image(nsImage: image)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
-                            .frame(height: 120)
+                            .frame(height: 140)
                             .clipped()
                     } else {
                         placeholder
                     }
                 } else if item.type == .video {
                     VideoPlayerView(item: item, isMuted: true)
-                        .frame(height: 120)
-                        .clipShape(.rect(cornerRadius: 8))
+                        .frame(height: 140)
                 } else {
                     placeholder
                 }
 
                 if isSelected {
-                    Rectangle()
-                        .fill(.blue.opacity(0.2))
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.white)
-                        .font(.title)
-                        .shadow(radius: 2)
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .stroke(Color.accentColor, lineWidth: 2)
+                        .padding(1)
                 }
             }
-            .frame(height: 120)
-            .background(Color.black.opacity(0.1))
+            .clipShape(.rect(cornerRadius: 22, style: .continuous)) // 四角椭圆
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.fileURL.lastPathComponent)
-                    .font(.caption)
-                    .lineLimit(1)
-                    .foregroundStyle(.primary)
-
-                HStack {
-                    if item.type == .video {
-                        Image(systemName: "video.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    if item.isFavorite {
-                        Image(systemName: "heart.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.red)
-                    }
-                    Spacer()
-                }
-            }
-            .padding(8)
-            .background(.ultraThinMaterial)
+            Text(item.fileURL.lastPathComponent)
+                .font(.caption)
+                .lineLimit(1)
+                .foregroundStyle(.primary)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(.white.opacity(0.1), lineWidth: 0.5)
-        )
     }
 
     private var placeholder: some View {

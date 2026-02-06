@@ -27,7 +27,11 @@ struct ContentView: View {
     @Query(sort: \MediaItem.createdAt, order: .reverse) private var items: [MediaItem] // 素材列表
 
     @State private var selectionIDs: Set<UUID> = [] // 选中素材的 ID 集合
+    @State private var focusedItemID: UUID? // 当前详情素材
     private var selectedItem: MediaItem? { // 当前单选素材
+        if let focusedItemID { // 优先显示焦点素材
+            return items.first { $0.id == focusedItemID }
+        }
         guard selectionIDs.count == 1, let id = selectionIDs.first else { return nil } // 仅单选
         return items.first { $0.id == id } // 查找素材
     }
@@ -100,6 +104,7 @@ struct ContentView: View {
         case .library:
             LibraryView( // 素材库视图
                 selectionIDs: $selectionIDs, // 选中绑定
+                focusedItemID: $focusedItemID, // 详情焦点
                 searchText: $searchText, // 搜索绑定
                 filterType: $filterType, // 类型绑定
                 showFavoritesOnly: $showFavoritesOnly // 收藏绑定

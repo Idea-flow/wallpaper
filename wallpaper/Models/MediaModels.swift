@@ -16,6 +16,18 @@ enum FitMode: String, Codable, CaseIterable {
     case tile // 平铺
 }
 
+extension FitMode {
+    var displayName: String { // macOS 原生墙纸模式名称
+        switch self {
+        case .fill: return "充满屏幕"
+        case .fit: return "适应于屏幕"
+        case .stretch: return "拉伸以充满屏幕"
+        case .center: return "居中显示"
+        case .tile: return "拼贴"
+        }
+    }
+}
+
 // RuleScope：规则作用范围
 enum RuleScope: String, Codable, CaseIterable {
     case global // 全局

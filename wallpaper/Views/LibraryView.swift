@@ -8,6 +8,7 @@ struct LibraryView: View {
     @Query(sort: \MediaItem.createdAt, order: .reverse) private var items: [MediaItem] // 素材列表
 
     @Binding var selectionIDs: Set<UUID> // 选中素材 ID 集合
+    @Binding var focusedItemID: UUID? // 当前详情素材
     @Binding var searchText: String // 搜索文本
     @Binding var filterType: MediaType? // 类型筛选
     @Binding var showFavoritesOnly: Bool // 仅收藏
@@ -34,22 +35,23 @@ struct LibraryView: View {
                     ScrollView {
                         LazyVGrid(columns: columns, spacing: 16) {
                             ForEach(filteredItems) { item in
-                                MediaCard(item: item, isSelected: selectionIDs.contains(item.id))
-                                    .frame(minWidth: cardMinWidth)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        handleSelection(item)
+                                Button {
+                                    handleSelection(item)
+                                } label: {
+                                    MediaCard(item: item, isSelected: selectionIDs.contains(item.id))
+                                        .frame(minWidth: cardMinWidth)
+                                }
+                                .buttonStyle(.plain)
+                                .contextMenu {
+                                    Button("标记收藏") {
+                                        item.isFavorite.toggle()
+                                        try? modelContext.save()
                                     }
-                                    .contextMenu {
-                                        Button("标记收藏") {
-                                            item.isFavorite.toggle()
-                                            try? modelContext.save()
-                                        }
-                                        Button("删除", role: .destructive) {
-                                            modelContext.delete(item)
-                                            try? modelContext.save()
-                                        }
+                                    Button("删除", role: .destructive) {
+                                        modelContext.delete(item)
+                                        try? modelContext.save()
                                     }
+                                }
                             }
                         }
                         .padding(16)
@@ -65,6 +67,17 @@ struct LibraryView: View {
                     }
                     .onDelete(perform: deleteItems)
                 }
+            }
+        }
+        .onChange(of: selectionIDs) { _, newValue in // 同步详情选择
+            if newValue.isEmpty {
+                focusedItemID = nil
+            } else if newValue.count == 1 {
+                focusedItemID = newValue.first
+            } else if let current = focusedItemID, newValue.contains(current) {
+                // 保留当前焦点
+            } else {
+                focusedItemID = newValue.first
             }
         }
         .searchable(text: $searchText, prompt: "搜索文件名/标签") // 搜索框
@@ -196,10 +209,12 @@ struct LibraryView: View {
                 selectionIDs.remove(item.id)
             } else {
                 selectionIDs.insert(item.id)
+                focusedItemID = item.id
             }
         } else {
             // 普通点击: 单选
             selectionIDs = [item.id]
+            focusedItemID = item.id
         }
     }
 

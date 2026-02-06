@@ -23,10 +23,10 @@ struct WallpaperService {
             throw WallpaperError.invalidImage("当前文件不是有效的图片格式。") // 抛出错误
         }
 
-        let options = desktopOptions(for: fitMode) // 生成适配选项
         let targetScreens = screen.map { [$0] } ?? NSScreen.screens // 选择目标屏幕
         for target in targetScreens { // 遍历所有屏幕
             do {
+                let options = desktopOptions(for: fitMode) // 生成适配选项
                 try NSWorkspace.shared.setDesktopImageURL(url, for: target, options: options) // 设置壁纸
             } catch {
                 throw WallpaperError.setFailed(error.localizedDescription) // 抛出系统错误
@@ -64,9 +64,10 @@ struct WallpaperService {
             allowClipping = true // 近似平铺
         }
 
+        // NSWorkspace 需要 NSNumber（否则会触发 __SwiftValue integerValue 异常）
         return [
-            .imageScaling: NSNumber(value: scaling.rawValue), // 用 NSNumber 传递
-            .allowClipping: NSNumber(value: allowClipping), // 用 NSNumber 传递
+            .imageScaling: NSNumber(value: scaling.rawValue),
+            .allowClipping: NSNumber(value: allowClipping),
         ]
     }
 }

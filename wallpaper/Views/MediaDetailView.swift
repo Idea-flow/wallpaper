@@ -28,12 +28,11 @@ struct MediaDetailView: View {
     }
 
     private var preview: some View { // 预览区域
-        return Group {
+        let content = Group {
             if item.type == .image { // 图片预览
                 let result = MediaAccessService.loadImageResult(for: item) // 读取结果
                 if let image = result.image { // 有图片
                     imagePreview(image) // 按模式预览
-                        .clipShape(.rect(cornerRadius: 12)) // 圆角
                 } else { // 读取失败
                     VStack(spacing: 8) { // 垂直布局
                         Image(systemName: "photo") // 图标
@@ -70,15 +69,20 @@ struct MediaDetailView: View {
             } else if item.type == .video { // 视频预览
                 VideoPlayerView(item: item, isMuted: true) // 视频预览
                     .id(item.id) // 强制在切换时刷新
-                    .clipShape(.rect(cornerRadius: 12)) // 圆角
             } else {
                 ContentUnavailableView("无法预览", systemImage: "photo") // 预览失败
             }
         }
-        .frame(maxWidth: .infinity) // 预览区域宽度
-        .frame(height: 360) // 固定高度
-        .glassSurface(cornerRadius: 12) // 玻璃容器
-        .clipped() // 裁剪溢出
+        .frame(maxWidth: .infinity, maxHeight: .infinity) // 填满容器
+        .background(previewBackground) // 预览底色
+
+        return content
+            .aspectRatio(previewAspectRatio, contentMode: .fit) // 对齐屏幕比例
+            .frame(maxWidth: .infinity) // 预览区域宽度
+            .frame(maxHeight: 360) // 最大高度
+            .glassSurface(cornerRadius: 12) // 玻璃容器
+            .clipShape(.rect(cornerRadius: 12, style: .continuous)) // 统一裁剪
+            .contentShape(.rect(cornerRadius: 12, style: .continuous)) // 命中区域
     }
 
     private var headerSection: some View { // 标题区
@@ -133,14 +137,11 @@ struct MediaDetailView: View {
         VStack(alignment: .leading, spacing: 10) { // 垂直布局
             Text("信息") // 标题
                 .font(.headline) // 标题字号
-            VStack(spacing: 8) { // 信息列表
-                infoRow(title: "分辨率", value: resolutionText)
-                infoRow(title: "时长", value: durationText)
-                infoRow(title: "大小", value: sizeText)
-                infoRow(title: "帧率", value: frameRateText)
-                infoRow(title: "最近使用", value: lastUsedText)
+            LazyVGrid(columns: infoColumns, alignment: .leading, spacing: 12) { // 横向信息
+                ForEach(infoItems) { item in
+                    infoChip(title: item.title, value: item.value)
+                }
             }
-            .font(.subheadline) // 字号
         }
         .padding(12) // 内边距
         .glassSurface(cornerRadius: 14) // 玻璃容器
@@ -150,17 +151,11 @@ struct MediaDetailView: View {
         VStack(alignment: .leading, spacing: 10) { // 垂直布局
             Text("编辑") // 标题
                 .font(.headline) // 标题字号
-            Toggle("收藏", isOn: $item.isFavorite) // 收藏开关
-            LabeledContent("评分") { // 评分
-                Stepper(value: $item.rating, in: 0...5) { // 步进器
-                    Text("\(item.rating)") // 当前评分
-                }
-                .frame(maxWidth: 140, alignment: .leading) // 控件宽度
-            }
-            LabeledContent("标签") { // 标签
-                TextField("逗号分隔", text: $item.tags) // 标签输入
-                    .textFieldStyle(.roundedBorder) // 输入框样式
-                    .frame(maxWidth: 240) // 控件宽度
+            HStack(alignment: .center, spacing: 16) { // 横向编辑
+                favoriteToggle // 收藏按钮
+                ratingEditor // 评分
+                tagsEditor // 标签
+                Spacer(minLength: 0)
             }
             if item.type == .video { // 视频权限按钮
                 Button("重新授权视频文件") { // 重新授权
@@ -177,11 +172,11 @@ struct MediaDetailView: View {
             Text("适配模式") // 标题
                 .foregroundStyle(.secondary) // 次级颜色
             Picker("", selection: $fitMode) { // 选择器
-                Text("填充").tag(FitMode.fill) // 填充
-                Text("适应").tag(FitMode.fit) // 适应
-                Text("拉伸").tag(FitMode.stretch) // 拉伸
-                Text("居中").tag(FitMode.center) // 居中
-                Text("平铺").tag(FitMode.tile) // 平铺
+                Text(FitMode.fill.displayName).tag(FitMode.fill) // 充满屏幕
+                Text(FitMode.fit.displayName).tag(FitMode.fit) // 适应于屏幕
+                Text(FitMode.stretch.displayName).tag(FitMode.stretch) // 拉伸以充满屏幕
+                Text(FitMode.center.displayName).tag(FitMode.center) // 居中显示
+                Text(FitMode.tile.displayName).tag(FitMode.tile) // 拼贴
             }
             .pickerStyle(.segmented) // 分段样式
         }
@@ -217,11 +212,47 @@ struct MediaDetailView: View {
         return formatter.string(fromByteCount: bytes) // 返回字符串
     }
 
-    private func infoRow(title: String, value: String?) -> some View { // 信息行
-        LabeledContent(title) { // 标题与值
-            Text(value ?? "—") // 空值占位
-                .foregroundStyle(.secondary) // 次级颜色
+    private struct InfoItem: Identifiable { // 信息项
+        let id = UUID()
+        let title: String
+        let value: String
+    }
+
+    private var infoItems: [InfoItem] { // 图片/视频展示不同内容
+        var items: [InfoItem] = []
+        if let resolutionText {
+            items.append(.init(title: "分辨率", value: resolutionText))
         }
+        if item.type == .video, let durationText {
+            items.append(.init(title: "时长", value: durationText))
+        }
+        if item.type == .video, let frameRateText {
+            items.append(.init(title: "帧率", value: frameRateText))
+        }
+        if let sizeText {
+            items.append(.init(title: "大小", value: sizeText))
+        }
+        if let lastUsedText {
+            items.append(.init(title: "最近使用", value: lastUsedText))
+        }
+        return items
+    }
+
+    private var infoColumns: [GridItem] { // 横向布局
+        [GridItem(.adaptive(minimum: 140), spacing: 12, alignment: .leading)]
+    }
+
+    private func infoChip(title: String, value: String) -> some View { // 信息块
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.subheadline)
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .background(.ultraThinMaterial, in: .rect(cornerRadius: 8, style: .continuous))
     }
 
     private var typeText: String { // 类型文本
@@ -260,7 +291,79 @@ struct MediaDetailView: View {
 
     private var lastUsedText: String? { // 最近使用
         guard let lastUsedAt = item.lastUsedAt else { return nil } // 无记录
-        return DateFormatter.localizedString(from: lastUsedAt, dateStyle: .medium, timeStyle: .short) // 格式化
+        return chineseDateFormatter.string(from: lastUsedAt) // 中国格式
+    }
+
+    private var favoriteToggle: some View { // 收藏开关
+        Group {
+            if #available(macOS 26, *) {
+                Toggle(isOn: $item.isFavorite) {
+                    Text("收藏")
+                }
+                .toggleStyle(.switch)
+                .tint(.pink)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .glassEffect(.regular.interactive(), in: .capsule)
+            } else {
+                Toggle("收藏", isOn: $item.isFavorite)
+                    .toggleStyle(.switch)
+                    .tint(.pink)
+            }
+        }
+    }
+
+    private var ratingEditor: some View { // 评分编辑
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("评分")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 36, alignment: .leading)
+            TextField("0-5", value: $item.rating, format: .number)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 64, height: 26)
+                .onChange(of: item.rating) { _, newValue in
+                    if newValue < 0 { item.rating = 0 }
+                    if newValue > 5 { item.rating = 5 }
+                }
+        }
+    }
+
+    private var tagsEditor: some View { // 标签编辑
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("标签")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 36, alignment: .leading)
+            TextField("逗号分隔", text: $item.tags)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 240, height: 26)
+        }
+    }
+
+    private var chineseDateFormatter: DateFormatter { // 中国日期格式
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "yyyy年M月d日 HH:mm"
+        return formatter
+    }
+
+    private var previewBackground: some View { // 预览底色
+        Rectangle()
+            .fill(.black.opacity(0.08))
+    }
+
+    private var previewAspectRatio: CGFloat? { // 预览比例
+        let targetScreen: NSScreen?
+        if selectedScreenID == "all" {
+            targetScreen = NSScreen.main
+        } else {
+            targetScreen = ScreenHelper.screenByID(selectedScreenID)
+        }
+        guard let screen = targetScreen else { return nil }
+        let size = screen.frame.size
+        guard size.height > 0 else { return nil }
+        return size.width / size.height
     }
 
     @ViewBuilder
