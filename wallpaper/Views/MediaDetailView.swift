@@ -13,35 +13,18 @@ struct MediaDetailView: View {
     let onApply: () -> Void // 设置壁纸回调
 
     var body: some View { // 主体
-        VStack(alignment: .leading, spacing: 16) { // 垂直布局
-            if item.type == .image || item.type == .video { // 图片/视频显示屏幕与模式选择
-                screenPicker // 屏幕选择
-                if item.type == .image { // 仅图片显示适配模式
-                    fitModePicker // 适配模式选择器
-                }
+        ScrollView { // 支持更多内容
+            VStack(alignment: .leading, spacing: 20) { // 垂直布局
+                headerSection // 标题区
+                preview // 预览区域
+                controlSection // 屏幕/适配控制
+                infoSection // 元信息
+                editSection // 编辑区
             }
-            preview // 预览区域
-            HStack { // 按钮区域
-                Button {
-                    onApply() // 点击设置壁纸
-                } label: {
-                    Label(isSettingWallpaper ? "设置中..." : "设为壁纸", systemImage: "sparkles") // 按钮文案
-                }
-                .glassActionButtonStyle() // 玻璃样式
-                .disabled(isSettingWallpaper) // 设置中禁用
-
-                Spacer() // 占位
-
-                if item.isFavorite { // 已收藏
-                    Label("已收藏", systemImage: "heart.fill") // 收藏标识
-                        .foregroundStyle(.red) // 红色
-                }
-            }
-
-            metadata // 元信息
-            editPanel // 编辑区域
+            .frame(maxWidth: .infinity, alignment: .leading) // 布局
+            .padding(20) // 统一内边距
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading) // 布局
+        .scrollIndicators(.hidden) // 隐藏滚动条
     }
 
     private var preview: some View { // 预览区域
@@ -98,8 +81,99 @@ struct MediaDetailView: View {
         .clipped() // 裁剪溢出
     }
 
+    private var headerSection: some View { // 标题区
+        VStack(alignment: .leading, spacing: 8) { // 垂直布局
+            HStack(alignment: .top, spacing: 12) { // 标题与操作
+                VStack(alignment: .leading, spacing: 6) { // 标题内容
+                    Text(item.fileURL.lastPathComponent) // 文件名
+                        .font(.title2) // 标题字号
+                        .bold() // 加粗
+                        .lineLimit(1) // 单行
+                        .truncationMode(.middle) // 中间省略
+                    HStack(spacing: 10) { // 状态信息
+                        Label(typeText, systemImage: typeIcon) // 类型
+                            .font(.subheadline) // 字号
+                            .foregroundStyle(.secondary) // 次级色
+                        Text(item.createdAt, format: .dateTime.year().month().day()) // 创建时间
+                            .font(.subheadline) // 字号
+                            .foregroundStyle(.secondary) // 次级色
+                        if item.isFavorite { // 收藏
+                            Label("已收藏", systemImage: "heart.fill") // 收藏标识
+                                .font(.subheadline) // 字号
+                                .foregroundStyle(.red) // 红色
+                        }
+                    }
+                }
+                Spacer() // 占位
+                Button {
+                    onApply() // 点击设置壁纸
+                } label: {
+                    Label(isSettingWallpaper ? "设置中..." : "设为壁纸", systemImage: "sparkles") // 文案
+                }
+                .glassActionButtonStyle() // 玻璃样式
+                .disabled(isSettingWallpaper) // 设置中禁用
+            }
+        }
+    }
+
+    private var controlSection: some View { // 屏幕与适配控制
+        VStack(alignment: .leading, spacing: 12) { // 垂直布局
+            if item.type == .image || item.type == .video { // 图片/视频显示屏幕选择
+                screenPicker // 屏幕选择
+            }
+            if item.type == .image { // 仅图片显示适配模式
+                fitModePicker // 适配模式选择器
+            }
+        }
+        .padding(12) // 内边距
+        .glassSurface(cornerRadius: 14) // 玻璃容器
+    }
+
+    private var infoSection: some View { // 元信息
+        VStack(alignment: .leading, spacing: 10) { // 垂直布局
+            Text("信息") // 标题
+                .font(.headline) // 标题字号
+            VStack(spacing: 8) { // 信息列表
+                infoRow(title: "分辨率", value: resolutionText)
+                infoRow(title: "时长", value: durationText)
+                infoRow(title: "大小", value: sizeText)
+                infoRow(title: "帧率", value: frameRateText)
+                infoRow(title: "最近使用", value: lastUsedText)
+            }
+            .font(.subheadline) // 字号
+        }
+        .padding(12) // 内边距
+        .glassSurface(cornerRadius: 14) // 玻璃容器
+    }
+
+    private var editSection: some View { // 编辑区域
+        VStack(alignment: .leading, spacing: 10) { // 垂直布局
+            Text("编辑") // 标题
+                .font(.headline) // 标题字号
+            Toggle("收藏", isOn: $item.isFavorite) // 收藏开关
+            LabeledContent("评分") { // 评分
+                Stepper(value: $item.rating, in: 0...5) { // 步进器
+                    Text("\(item.rating)") // 当前评分
+                }
+                .frame(maxWidth: 140, alignment: .leading) // 控件宽度
+            }
+            LabeledContent("标签") { // 标签
+                TextField("逗号分隔", text: $item.tags) // 标签输入
+                    .textFieldStyle(.roundedBorder) // 输入框样式
+                    .frame(maxWidth: 240) // 控件宽度
+            }
+            if item.type == .video { // 视频权限按钮
+                Button("重新授权视频文件") { // 重新授权
+                    reselectFile() // 重新选择
+                }
+            }
+        }
+        .padding(12) // 内边距
+        .glassSurface(cornerRadius: 14) // 玻璃容器
+    }
+
     private var fitModePicker: some View { // 适配模式选择器
-        HStack(spacing: 12) { // 横向布局
+        VStack(alignment: .leading, spacing: 8) { // 垂直布局
             Text("适配模式") // 标题
                 .foregroundStyle(.secondary) // 次级颜色
             Picker("", selection: $fitMode) { // 选择器
@@ -116,7 +190,7 @@ struct MediaDetailView: View {
     @ViewBuilder
     private var screenPicker: some View { // 屏幕选择器
         let options = ScreenHelper.screenOptions() // 屏幕选项
-        HStack(spacing: 12) { // 横向布局
+        VStack(alignment: .leading, spacing: 8) { // 垂直布局
             Text("应用屏幕") // 标题
                 .foregroundStyle(.secondary) // 次级颜色
             Picker("", selection: $selectedScreenID) { // 选择器
@@ -126,40 +200,6 @@ struct MediaDetailView: View {
                 }
             }
             .pickerStyle(.segmented) // 分段样式
-        }
-    }
-
-    private var metadata: some View { // 元信息
-        VStack(alignment: .leading, spacing: 6) { // 垂直布局
-            Text(item.fileURL.lastPathComponent) // 文件名
-                .font(.headline) // 标题样式
-
-            HStack(spacing: 12) { // 横向排列
-                if let width = item.width, let height = item.height { // 有尺寸
-                    Text("\(Int(width)) x \(Int(height))") // 显示尺寸
-                }
-                if let duration = item.duration { // 有时长
-                    Text("\(formatDuration(duration))") // 显示时长
-                }
-                if let sizeBytes = item.sizeBytes { // 有大小
-                    Text(byteCount(sizeBytes)) // 显示大小
-                }
-            }
-            .foregroundStyle(.secondary) // 次级颜色
-        }
-    }
-
-    private var editPanel: some View { // 编辑区域
-        VStack(alignment: .leading, spacing: 8) { // 垂直布局
-            Toggle("收藏", isOn: $item.isFavorite) // 收藏开关
-            Stepper("评分：\(item.rating)", value: $item.rating, in: 0...5) // 评分
-            TextField("标签（逗号分隔）", text: $item.tags) // 标签输入
-                .textFieldStyle(.roundedBorder) // 输入框样式
-            if item.type == .video { // 视频权限按钮
-                Button("重新授权视频文件") { // 重新授权
-                    reselectFile() // 重新选择
-                }
-            }
         }
     }
 
@@ -175,6 +215,52 @@ struct MediaDetailView: View {
         formatter.allowedUnits = [.useMB, .useGB] // 只显示 MB/GB
         formatter.countStyle = .file // 文件样式
         return formatter.string(fromByteCount: bytes) // 返回字符串
+    }
+
+    private func infoRow(title: String, value: String?) -> some View { // 信息行
+        LabeledContent(title) { // 标题与值
+            Text(value ?? "—") // 空值占位
+                .foregroundStyle(.secondary) // 次级颜色
+        }
+    }
+
+    private var typeText: String { // 类型文本
+        switch item.type { // 类型
+        case .image: return "图片" // 图片
+        case .video: return "视频" // 视频
+        }
+    }
+
+    private var typeIcon: String { // 类型图标
+        switch item.type { // 类型
+        case .image: return "photo" // 图片图标
+        case .video: return "video" // 视频图标
+        }
+    }
+
+    private var resolutionText: String? { // 分辨率文本
+        guard let width = item.width, let height = item.height else { return nil } // 无尺寸
+        return "\(Int(width)) × \(Int(height))" // 尺寸文本
+    }
+
+    private var durationText: String? { // 时长文本
+        guard let duration = item.duration else { return nil } // 无时长
+        return formatDuration(duration) // 格式化
+    }
+
+    private var sizeText: String? { // 大小文本
+        guard let sizeBytes = item.sizeBytes else { return nil } // 无大小
+        return byteCount(sizeBytes) // 格式化
+    }
+
+    private var frameRateText: String? { // 帧率文本
+        guard let frameRate = item.frameRate, frameRate > 0 else { return nil } // 无帧率
+        return String(format: "%.2f fps", frameRate) // 帧率
+    }
+
+    private var lastUsedText: String? { // 最近使用
+        guard let lastUsedAt = item.lastUsedAt else { return nil } // 无记录
+        return DateFormatter.localizedString(from: lastUsedAt, dateStyle: .medium, timeStyle: .short) // 格式化
     }
 
     @ViewBuilder

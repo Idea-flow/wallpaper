@@ -266,20 +266,28 @@ struct MediaRow: View {
 extension View {
     @ViewBuilder
     func glassSurface(cornerRadius: CGFloat = 16) -> some View { // 玻璃容器
-        self.background {
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(.ultraThinMaterial) // 磨砂背景
-                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5) // 柔和阴影
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .stroke(.white.opacity(0.2), lineWidth: 0.5) // 精致描边
+        if #available(macOS 26, *) { // Liquid Glass
+            self.glassEffect(.regular, in: .rect(cornerRadius: cornerRadius)) // 原生玻璃
+        } else {
+            self.background {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(.ultraThinMaterial) // 磨砂背景
+                    .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5) // 柔和阴影
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(.white.opacity(0.2), lineWidth: 0.5) // 精致描边
+            }
         }
     }
 
     @ViewBuilder
     func glassActionButtonStyle() -> some View { // 玻璃按钮样式
-        self.buttonStyle(GlassButtonStyle())
+        if #available(macOS 26, *) { // Liquid Glass
+            self.buttonStyle(.glassProminent)
+        } else {
+            self.buttonStyle(GlassButtonStyle())
+        }
     }
 }
 
