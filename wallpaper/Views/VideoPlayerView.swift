@@ -11,10 +11,12 @@ struct VideoPlayerView: NSViewRepresentable {
     class Coordinator {
         var player: AVPlayer // 播放器
         var accessToken: MediaAccessService.AccessToken // 安全访问令牌
+        var currentItemID: UUID // 当前素材 ID
 
         init(accessToken: MediaAccessService.AccessToken, player: AVPlayer) { // 指定初始化
             self.accessToken = accessToken // 保存令牌
             self.player = player // 保存播放器
+            self.currentItemID = UUID() // 初始化占位
         }
 
         convenience init(item: MediaItem, isMuted: Bool) throws { // 便捷初始化
@@ -24,6 +26,7 @@ struct VideoPlayerView: NSViewRepresentable {
             let player = AVPlayer(playerItem: playerItem) // 创建播放器
             player.isMuted = isMuted // 设置静音
             self.init(accessToken: token, player: player) // 调用指定初始化
+            self.currentItemID = item.id // 保存当前素材 ID
         }
 
         static func fallback() -> Coordinator { // 兜底协调器
@@ -58,5 +61,24 @@ struct VideoPlayerView: NSViewRepresentable {
         guard let layer = nsView.layer as? AVPlayerLayer else { return } // 确保图层类型
         layer.frame = nsView.bounds // 更新图层大小
         context.coordinator.player.isMuted = isMuted // 更新静音状态
+
+        if context.coordinator.currentItemID != item.id { // 切换了视频
+            NSLog("[视频预览] 检测到视频切换，重新加载播放器") // 日志
+            context.coordinator.accessToken.stopAccess() // 停止旧访问
+            do {
+                let token = try MediaAccessService.beginAccess(for: item) // 重新获取访问
+                let asset = AVURLAsset(url: token.url) // 创建资源
+                let playerItem = AVPlayerItem(asset: asset) // 播放条目
+                let player = AVPlayer(playerItem: playerItem) // 播放器
+                player.isMuted = isMuted // 静音
+                context.coordinator.accessToken = token // 更新令牌
+                context.coordinator.player = player // 更新播放器
+                context.coordinator.currentItemID = item.id // 更新 ID
+                layer.player = player // 替换图层播放器
+                player.play() // 播放
+            } catch {
+                NSLog("[视频预览] 重新加载失败：\(error.localizedDescription)") // 日志
+            }
+        }
     }
 }

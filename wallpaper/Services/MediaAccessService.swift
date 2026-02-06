@@ -97,8 +97,21 @@ struct MediaAccessService {
 
     // beginAccess：保持安全访问，用于视频播放等长期任务
     static func beginAccess(for item: MediaItem) throws -> AccessToken {
+        let fileURL = item.fileURL // 原始路径
+        if !FileManager.default.fileExists(atPath: fileURL.path) { // 文件不存在
+            NSLog("[MediaAccessService] beginAccess: 文件不存在：\(fileURL.path)") // 日志
+        }
+        if !FileManager.default.isReadableFile(atPath: fileURL.path) { // 文件不可读
+            NSLog("[MediaAccessService] beginAccess: 文件不可读（可能是权限问题）：\(fileURL.path)") // 日志
+        }
+
         guard let bookmarkData = item.bookmarkData else { // 没有书签
-            return AccessToken(url: item.fileURL, stopAccess: {}) // 直接返回原路径
+            let didAccess = fileURL.startAccessingSecurityScopedResource() // 尝试安全访问
+            return AccessToken(url: fileURL, stopAccess: { // 返回令牌
+                if didAccess { // 确保访问成功
+                    fileURL.stopAccessingSecurityScopedResource() // 停止访问
+                }
+            })
         }
 
         do { // 捕获书签解析错误
@@ -117,7 +130,12 @@ struct MediaAccessService {
             })
         } catch { // 解析失败时回退
             NSLog("[MediaAccessService] beginAccess: 解析书签失败，回退使用 fileURL：\(error.localizedDescription)")
-            return AccessToken(url: item.fileURL, stopAccess: {}) // 返回原路径
+            let didAccess = fileURL.startAccessingSecurityScopedResource() // 尝试安全访问
+            return AccessToken(url: fileURL, stopAccess: { // 返回原路径
+                if didAccess { // 确保访问成功
+                    fileURL.stopAccessingSecurityScopedResource() // 停止访问
+                }
+            })
         }
     }
 }

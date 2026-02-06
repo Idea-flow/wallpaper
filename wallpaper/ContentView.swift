@@ -33,6 +33,7 @@ struct ContentView: View {
     @State private var alertMessage: String? // 提示消息
     @State private var isSettingWallpaper = false // 是否在设置壁纸
     @State private var selectedFitMode: FitMode = .fill // 预览/设置适配模式
+    @State private var selectedScreenID: String = "all" // 选择屏幕（all 表示全部）
 
     var body: some View { // 主界面
         NavigationSplitView { // 三栏布局
@@ -94,9 +95,10 @@ struct ContentView: View {
                 MediaDetailView( // 详情视图
                     item: item, // 素材
                     fitMode: $selectedFitMode, // 适配模式绑定
+                    selectedScreenID: $selectedScreenID, // 选择屏幕绑定
                     isSettingWallpaper: $isSettingWallpaper // 设置状态绑定
                 ) {
-                    applyWallpaper(for: item, fitMode: selectedFitMode) // 执行设置壁纸
+                    applyWallpaper(for: item, fitMode: selectedFitMode, screenID: selectedScreenID) // 执行设置壁纸
                 }
             } else {
                 ContentUnavailableView("请选择一张图片", systemImage: "photo") // 无选择占位
@@ -142,20 +144,25 @@ struct ContentView: View {
         }
     }
 
-    private func applyWallpaper(for item: MediaItem, fitMode: FitMode) { // 设置壁纸
+    private func applyWallpaper(for item: MediaItem, fitMode: FitMode, screenID: String) { // 设置壁纸
         isSettingWallpaper = true // 标记开始
         defer { isSettingWallpaper = false } // 结束时恢复
 
         do {
             if item.type == .image { // 图片壁纸
                 VideoWallpaperService.shared.stopAll() // 切换到图片时停止视频壁纸
-                try MediaAccessService.withResolvedURL(for: item) { url in // 使用安全路径
-                    try WallpaperService.applyImage(url: url, to: nil, fitMode: fitMode) // 设置壁纸
+                let targetScreen = screenID == "all" ? nil : ScreenHelper.screenByID(screenID) // 目标屏幕
+                if screenID != "all" && targetScreen == nil { // 未找到目标屏幕
+                    NSLog("[壁纸] 未找到目标屏幕，screenID=\(screenID)") // 日志
                 }
-                alertMessage = "已应用到所有屏幕。" // 提示成功
+                try MediaAccessService.withResolvedURL(for: item) { url in // 使用安全路径
+                    try WallpaperService.applyImage(url: url, to: targetScreen, fitMode: fitMode) // 设置壁纸
+                }
+                alertMessage = screenID == "all" ? "已应用到所有屏幕。" : "已应用到指定屏幕。" // 提示成功
             } else if item.type == .video { // 视频壁纸
-                try VideoWallpaperService.shared.applyVideo(item: item, fitMode: fitMode) // 启动视频壁纸
-                alertMessage = "视频壁纸已启动。" // 提示成功
+                let targetScreenID = screenID == "all" ? nil : screenID // 目标屏幕 ID
+                try VideoWallpaperService.shared.applyVideo(item: item, fitMode: fitMode, screenID: targetScreenID) // 启动视频壁纸
+                alertMessage = screenID == "all" ? "视频壁纸已启动（所有屏幕）。" : "视频壁纸已启动（指定屏幕）。" // 提示成功
             } else {
                 try WallpaperService.applyVideoPlaceholder() // 其他类型占位
             }
@@ -218,9 +225,9 @@ struct ThumbnailView: View {
     let item: MediaItem // 素材
 
     var body: some View { // 视图
-        let result = MediaAccessService.loadImageResult(for: item) // 读取结果
         ZStack { // 叠放
             if item.type == .image { // 图片类型
+                let result = MediaAccessService.loadImageResult(for: item) // 读取结果
                 if let image = result.image { // 读取成功
                     Image(nsImage: image) // 显示图片
                         .resizable() // 可拉伸
@@ -256,13 +263,17 @@ struct ThumbnailView: View {
 struct MediaDetailView: View {
     let item: MediaItem // 素材
     @Binding var fitMode: FitMode // 适配模式
+    @Binding var selectedScreenID: String // 选择屏幕
     @Binding var isSettingWallpaper: Bool // 设置中状态
     let onApply: () -> Void // 设置壁纸回调
 
     var body: some View { // 主体
         VStack(alignment: .leading, spacing: 16) { // 垂直布局
-            if item.type == .image { // 仅图片显示模式选择
-                fitModePicker // 适配模式选择器
+            if item.type == .image || item.type == .video { // 图片/视频显示屏幕与模式选择
+                screenPicker // 屏幕选择
+                if item.type == .image { // 仅图片显示适配模式
+                    fitModePicker // 适配模式选择器
+                }
             }
             preview // 预览区域
             HStack { // 按钮区域
@@ -288,9 +299,9 @@ struct MediaDetailView: View {
     }
 
     private var preview: some View { // 预览区域
-        let result = MediaAccessService.loadImageResult(for: item) // 读取结果
         return Group {
             if item.type == .image { // 图片预览
+                let result = MediaAccessService.loadImageResult(for: item) // 读取结果
                 if let image = result.image { // 有图片
                     imagePreview(image) // 按模式预览
                         .clipShape(.rect(cornerRadius: 12)) // 圆角
@@ -324,6 +335,7 @@ struct MediaDetailView: View {
                 }
             } else if item.type == .video { // 视频预览
                 VideoPlayerView(item: item, isMuted: true) // 视频预览
+                    .id(item.id) // 强制在切换时刷新
                     .clipShape(.rect(cornerRadius: 12)) // 圆角
             } else {
                 ContentUnavailableView("无法预览", systemImage: "photo") // 预览失败
@@ -345,6 +357,21 @@ struct MediaDetailView: View {
                 Text("拉伸").tag(FitMode.stretch) // 拉伸
                 Text("居中").tag(FitMode.center) // 居中
                 Text("平铺").tag(FitMode.tile) // 平铺
+            }
+            .pickerStyle(.segmented) // 分段样式
+        }
+    }
+
+    private var screenPicker: some View { // 屏幕选择器
+        let options = ScreenHelper.screenOptions() // 屏幕选项
+        return HStack(spacing: 12) { // 横向布局
+            Text("应用屏幕") // 标题
+                .foregroundStyle(.secondary) // 次级颜色
+            Picker("", selection: $selectedScreenID) { // 选择器
+                Text("所有屏幕").tag("all") // 默认全部
+                ForEach(options) { option in // 遍历屏幕
+                    Text(option.title).tag(option.id) // 屏幕名称
+                }
             }
             .pickerStyle(.segmented) // 分段样式
         }
@@ -418,6 +445,37 @@ struct MediaDetailView: View {
 #Preview { // 预览
     ContentView() // 预览内容
         .modelContainer(for: MediaItem.self, inMemory: true) // 使用内存模型
+}
+
+// ScreenOption：屏幕选项
+struct ScreenOption: Identifiable { // 可识别
+    let id: String // 屏幕 ID
+    let title: String // 显示名称
+}
+
+// ScreenHelper：屏幕相关工具
+struct ScreenHelper { // 工具结构
+    // screenOptions：生成屏幕选项
+    static func screenOptions() -> [ScreenOption] { // 返回屏幕列表
+        NSScreen.screens.map { screen in // 遍历屏幕
+            let id = screenIdentifier(screen) // 屏幕 ID
+            let title = "\(screen.localizedName) · \(id)" // 显示名称
+            return ScreenOption(id: id, title: title) // 返回选项
+        }
+    }
+
+    // screenByID：通过 ID 找到屏幕
+    static func screenByID(_ id: String) -> NSScreen? { // 通过 ID 查找
+        NSScreen.screens.first { screenIdentifier($0) == id } // 匹配 ID
+    }
+
+    // screenIdentifier：获取屏幕唯一 ID
+    static func screenIdentifier(_ screen: NSScreen) -> String { // 屏幕 ID
+        if let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber { // 读取编号
+            return number.stringValue // 返回编号
+        }
+        return screen.localizedName // 回退到名称
+    }
 }
 
 // View 扩展：封装 Liquid Glass 样式

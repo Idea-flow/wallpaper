@@ -19,16 +19,23 @@ final class VideoWallpaperService {
     private init() {} // 禁止外部初始化
 
     // applyVideo：将视频应用为桌面壁纸
-    func applyVideo(item: MediaItem, fitMode: FitMode) throws {
+    func applyVideo(item: MediaItem, fitMode: FitMode, screenID: String?) throws {
         print("[视频壁纸] 启动视频壁纸：\(item.fileURL.lastPathComponent)") // 关键步骤日志
+        print("[视频壁纸] 目标屏幕ID：\(screenID ?? "all")") // 关键步骤日志
 
         let token = try MediaAccessService.beginAccess(for: item) // 开始安全访问
         let screens = NSScreen.screens // 获取所有屏幕
+        print("[视频壁纸] 当前屏幕数量：\(screens.count)") // 关键步骤日志
+        for screen in screens { // 打印屏幕详情
+            print("[视频壁纸] 屏幕：\(screen.localizedName) | id=\(screenIdentifier(screen)) | frame=\(screen.frame)") // 关键步骤日志
+        }
+        let targetScreens = screenID == nil ? screens : screens.filter { screenIdentifier($0) == screenID } // 目标屏幕
+        print("[视频壁纸] 目标屏幕数量：\(targetScreens.count)") // 关键步骤日志
 
         stopAll() // 启动前清理旧的播放
         accessToken = token // 保存访问令牌
 
-        for screen in screens { // 遍历屏幕
+        for screen in targetScreens { // 遍历目标屏幕
             let gravity = videoGravity(for: fitMode) // 计算视频适配方式
             let window = makeWindow(for: screen) // 创建桌面窗口
 
@@ -61,6 +68,7 @@ final class VideoWallpaperService {
 
             let key = ObjectIdentifier(screen) // 生成屏幕标识
             entries[key] = Entry(window: window, player: player, endObserver: endObserver) // 保存条目
+            print("[视频壁纸] 已启动屏幕：\(screen.localizedName) | id=\(screenIdentifier(screen))") // 关键步骤日志
         }
     }
 
@@ -115,5 +123,13 @@ final class VideoWallpaperService {
         case .tile:
             return .resizeAspectFill // 近似平铺
         }
+    }
+
+    // screenIdentifier：获取屏幕唯一 ID
+    private func screenIdentifier(_ screen: NSScreen) -> String { // 屏幕 ID
+        if let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber { // 读取编号
+            return number.stringValue // 返回编号
+        }
+        return screen.localizedName // 回退到名称
     }
 }
