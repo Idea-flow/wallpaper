@@ -1,0 +1,82 @@
+# macOS
+.DS_Store
+
+# Xcode
+# Build products
+build/
+*.xcarchive
+*.ipa
+
+# Xcode user settings and workspace data (user-specific, should not be committed)
+xcuserdata/
+*.xcuserdatad/
+*.xcuserstate
+
+# Xcode project workspace state
+*.xcworkspace/xcuserdata/
+project.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
+
+# Xcode temporary files
+*.xccheckout
+*.xcscmblueprint
+*.moved-aside
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# Derived data
+DerivedData/
+
+# Swift Package Manager
+.build/
+Packages/
+.package.resolved
+
+# SwiftPM editable packages
+.swiftpm
+
+# CocoaPods
+Pods/
+
+# Carthage
+Carthage/Build/
+Carthage/Checkouts/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Symbols, logs, temp
+*.dSYM/
+*.log
+*.tmp
+*.swp
+
+# Secrets, certificates, provisioning profiles
+*.p12
+*.cer
+*.mobileprovision
+
+# IDEs
+.idea/
+.vscode/
+
+# Other
+# Ignore user-specific and OS files
+*.swp
+*~
+~*
+
+# Node / tooling (in case you add front-end or tools)
+node_modules/
+
+# Ignore archive of export
+*.xcresult
+
+# Keep lockfiles (Package.resolved) if you want reproducible builds; currently ignored above — adjust to project policy.
