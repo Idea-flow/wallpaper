@@ -86,3 +86,13 @@ Item.swift：SwiftData 模型，仅含一个 timestamp 字段。
 # 菜单
 左侧菜单栏,素材库,相册,规则,设置 都有什么功能,请详细描述,以及规划
 写入到 /Users/wangpenglong/projects/swift/wallpaper/AI/plan 文件夹下
+
+
+
+
+
+
+1.设置页面调整布局,似乎不需要三栏布局
+2.主色彩支持在设置选项中配置
+
+

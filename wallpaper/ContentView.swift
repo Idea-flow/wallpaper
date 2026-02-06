@@ -26,12 +26,16 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext // SwiftData 上下文
     @Query(sort: \MediaItem.createdAt, order: .reverse) private var items: [MediaItem] // 素材列表
 
-    @State private var selectionID: UUID? // 选中素材的 ID
-    private var selectedItem: MediaItem? { items.first { $0.id == selectionID } } // 通过 ID 找到素材
+    @State private var selectionIDs: Set<UUID> = [] // 选中素材的 ID 集合
+    private var selectedItem: MediaItem? { // 当前单选素材
+        guard selectionIDs.count == 1, let id = selectionIDs.first else { return nil } // 仅单选
+        return items.first { $0.id == id } // 查找素材
+    }
     @Query(sort: \Album.name, order: .forward) private var albums: [Album] // 相册列表
     @State private var selectedAlbumID: UUID? // 选中相册 ID
     private var selectedAlbum: Album? { albums.first { $0.id == selectedAlbumID } } // 当前相册
     @State private var sidebarSelection: SidebarSection = .library // 当前侧栏选择
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all // 列显示
     @State private var showingImporter = false // 是否展示导入弹窗
     @State private var alertMessage: String? // 提示消息
     @State private var isSettingWallpaper = false // 是否在设置壁纸
@@ -42,7 +46,7 @@ struct ContentView: View {
     @State private var showFavoritesOnly = false // 仅收藏
 
     var body: some View { // 主界面
-        NavigationSplitView { // 三栏布局
+        NavigationSplitView(columnVisibility: $columnVisibility) { // 三栏布局
             List(SidebarSection.allCases, selection: $sidebarSelection) { section in // 侧栏列表
                 Label(section.rawValue, systemImage: section.systemImage) // 侧栏行
                     .tag(section) // 绑定选择
@@ -51,25 +55,15 @@ struct ContentView: View {
             .listStyle(.sidebar) // 侧栏样式
             .navigationSplitViewColumnWidth(min: 180, ideal: 220) // 侧栏宽度
         } content: { // 中间栏内容
-            switch sidebarSelection { // 根据侧栏切换
-            case .library:
-                LibraryView( // 素材库视图
-                    selectionID: $selectionID, // 选中绑定
-                    searchText: $searchText, // 搜索绑定
-                    filterType: $filterType, // 类型绑定
-                    showFavoritesOnly: $showFavoritesOnly // 收藏绑定
-                ) { // 导入回调
-                    showingImporter = true // 打开导入
-                }
-            case .albums:
-                AlbumsView(selectedAlbumID: $selectedAlbumID) // 相册列表
-            case .rules:
-                RulesView() // 规则列表
-            case .settings:
-                SettingsView() // 设置
-            }
+            contentColumn // 内容列
         } detail: { // 右侧详情
-            detailView // 详情视图
+            detailColumn // 详情列
+        }
+        .onAppear { // 初始化列显示
+            updateColumnVisibility(for: sidebarSelection) // 更新列显示
+        }
+        .onChange(of: sidebarSelection) { newValue in // 监听切换
+            updateColumnVisibility(for: newValue) // 更新列显示
         }
         .fileImporter( // 导入文件弹窗
             isPresented: $showingImporter, // 是否显示
@@ -88,11 +82,46 @@ struct ContentView: View {
         }
     }
 
+    private func updateColumnVisibility(for section: SidebarSection) { // 更新列显示
+        switch section { // 根据模块
+        case .settings:
+            columnVisibility = .detailOnly // 显示侧栏 + 中间列
+        default:
+            columnVisibility = .all // 显示三栏
+        }
+    }
+
+    @ViewBuilder
+    private var contentColumn: some View { // 中间栏内容
+        switch sidebarSelection { // 根据侧栏切换
+        case .library:
+            LibraryView( // 素材库视图
+                selectionIDs: $selectionIDs, // 选中绑定
+                searchText: $searchText, // 搜索绑定
+                filterType: $filterType, // 类型绑定
+                showFavoritesOnly: $showFavoritesOnly // 收藏绑定
+            ) { // 导入回调
+                showingImporter = true // 打开导入
+            }
+        case .albums:
+            AlbumsView(selectedAlbumID: $selectedAlbumID) // 相册列表
+        case .rules:
+            RulesView() // 规则列表
+        case .settings:
+            SettingsView() // 设置放在中间列
+        }
+    }
+
+    @ViewBuilder
+    private var detailColumn: some View { // 详情列
+        detailView // 详情视图
+    }
+
     private var detailView: some View { // 详情区域
         Group {
             switch sidebarSelection { // 按模块显示详情
             case .library:
-                if let item = selectedItem { // 有选中素材
+                if let item = selectedItem { // 有选中素材（单选）
                     MediaDetailView( // 详情视图
                         item: item, // 素材
                         fitMode: $selectedFitMode, // 适配模式绑定
@@ -101,6 +130,8 @@ struct ContentView: View {
                     ) {
                         applyWallpaper(for: item, fitMode: selectedFitMode, screenID: selectedScreenID) // 执行设置壁纸
                     }
+                } else if !selectionIDs.isEmpty { // 多选时提示
+                    ContentUnavailableView("已选择 \(selectionIDs.count) 项，可在中间栏进行批量操作", systemImage: "checkmark.circle") // 多选提示
                 } else {
                     ContentUnavailableView("请选择一张图片", systemImage: "photo") // 无选择占位
                 }
@@ -113,7 +144,7 @@ struct ContentView: View {
             case .rules:
                 ContentUnavailableView("请选择规则", systemImage: "clock.arrow.circlepath") // 规则占位
             case .settings:
-                ContentUnavailableView("设置项在左侧", systemImage: "gearshape") // 设置占位
+                EmptyView() // 设置不在详情列显示
             }
         }
         .padding() // 内边距
@@ -257,7 +288,7 @@ struct ThumbnailView: View {
 
 // MediaDetailView：素材详情与预览
 struct MediaDetailView: View {
-    let item: MediaItem // 素材
+    @Bindable var item: MediaItem // 素材（可编辑）
     @Binding var fitMode: FitMode // 适配模式
     @Binding var selectedScreenID: String // 选择屏幕
     @Binding var isSettingWallpaper: Bool // 设置中状态
@@ -290,6 +321,7 @@ struct MediaDetailView: View {
             }
 
             metadata // 元信息
+            editPanel // 编辑区域
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading) // 布局
     }
@@ -390,6 +422,15 @@ struct MediaDetailView: View {
                 }
             }
             .foregroundStyle(.secondary) // 次级颜色
+        }
+    }
+
+    private var editPanel: some View { // 编辑区域
+        VStack(alignment: .leading, spacing: 8) { // 垂直布局
+            Toggle("收藏", isOn: $item.isFavorite) // 收藏开关
+            Stepper("评分：\(item.rating)", value: $item.rating, in: 0...5) // 评分
+            TextField("标签（逗号分隔）", text: $item.tags) // 标签输入
+                .textFieldStyle(.roundedBorder) // 输入框样式
         }
     }
 

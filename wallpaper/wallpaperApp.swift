@@ -4,6 +4,10 @@ import SwiftData // SwiftData 框架
 // wallpaperApp：应用入口，配置 SwiftData 容器并启动界面
 @main
 struct wallpaperApp: App {
+    @AppStorage("menuBarEnabled") private var menuBarEnabled = false // 菜单栏开关
+    @AppStorage("themeColorHex") private var themeColorHex = ThemeColor.defaultHex // 主题色
+    @AppStorage("themeMode") private var themeMode = "system" // 主题模式
+
     var sharedModelContainer: ModelContainer = { // 共享数据库容器
         let schema = Schema([ // 定义数据模型
             MediaItem.self, // 素材
@@ -24,7 +28,24 @@ struct wallpaperApp: App {
     var body: some Scene { // 主场景
         WindowGroup { // 窗口组
             ContentView() // 主界面
+                .tint(ThemeColor.color(from: themeColorHex)) // 应用主题色
+                .preferredColorScheme(preferredScheme) // 应用主题模式
         }
         .modelContainer(sharedModelContainer) // 注入数据容器
+
+        MenuBarExtra("wallpaper", systemImage: "photo", isInserted: $menuBarEnabled) { // 菜单栏
+            MenuBarContentView() // 菜单栏内容
+        }
+    }
+
+    private var preferredScheme: ColorScheme? { // 主题模式映射
+        switch themeMode { // 判断模式
+        case "light":
+            return .light // 明亮
+        case "dark":
+            return .dark // 暗黑
+        default:
+            return nil // 跟随系统
+        }
     }
 }
