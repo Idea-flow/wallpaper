@@ -53,7 +53,11 @@ Item.swift：SwiftData 模型，仅含一个 timestamp 字段。
 
 
 1.修复图片右侧,和中间图片不展示和不预览的问题
-2.每个类需要总结一下作用(写在类的开头注释),每行代码要解释一下作用(注释咋ID爱啊吗中)
+2.每个类需要总结一下作用(写在类的开头注释),每行代码要解释一下作用(注释代码中)
+3.关键操作步骤 打印日志,如果有错误日志也打印出来
+
+1.每个类需要总结一下作用(写在类的开头注释),每行代码要解释一下作用(注释代码中)
+2.关键操作步骤 打印日志,如果有错误日志也打印出来
 
 
 
@@ -149,3 +153,13 @@ Item.swift：SwiftData 模型，仅含一个 timestamp 字段。
 
 规则详情页面, 例如 范围等 有多个背景, 取消灰色的背景,保留选中和 Liquid Glass风格的背景
 
+
+图标:
+modern Chinese aesthetic, xianxia (immortal) vibe, minimal composition, misty mountains and flowing clouds, soft ink-wash gradient, jade white + pale cyan palette, lots of negative space, elegant and serene, rounded square canvas, no text, no watermark, 1024x1024, 
+
+
+
+# 菜单栏
+1.仅限菜单栏相关文件
+2.显示主窗口,下一张/上一张,停止视频壁纸,导入素材,退出
+3.需要模块化开发,后期好维护一些
