@@ -1,3 +1,4 @@
+import AppKit // NSEvent
 import SwiftUI // SwiftUI 界面
 import SwiftData // SwiftData 数据
 
@@ -15,14 +16,37 @@ struct LibraryView: View {
     @State private var showingTagEditor = false // 是否显示标签弹窗
     @State private var tagInput = "" // 标签输入
 
+    // 定义网格列布局
+    private let columns = [
+        GridItem(.adaptive(minimum: 140, maximum: 200), spacing: 16)
+    ]
+
     var body: some View { // 主体
-        List(selection: $selectionIDs) { // 列表
-            ForEach(filteredItems) { item in // 过滤后的素材
-                MediaRow(item: item) // 列表行
-                    .tag(item.id) // 绑定选择
+        GeometryReader { geometry in
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 16) {
+                    ForEach(filteredItems) { item in
+                        MediaCard(item: item, isSelected: selectionIDs.contains(item.id))
+                            .onTapGesture {
+                                handleSelection(item)
+                            }
+                            .contextMenu {
+                                Button("标记收藏") {
+                                    item.isFavorite.toggle()
+                                    try? modelContext.save()
+                                }
+                                Button("删除", role: .destructive) {
+                                    modelContext.delete(item)
+                                    try? modelContext.save()
+                                }
+                            }
+                    }
+                }
+                .padding()
             }
-            .onDelete(perform: deleteItems) // 删除
+            .frame(width: geometry.size.width, height: geometry.size.height)
         }
+        .background(Color.clear) // 确保背景透明以透出 Liquid Glass 效果
         .searchable(text: $searchText, prompt: "搜索文件名/标签") // 搜索框
         .toolbar { // 工具栏
             Button { // 导入按钮
@@ -137,5 +161,19 @@ struct LibraryView: View {
             item.tags = tags // 设置标签
         }
         try? modelContext.save() // 保存
+    }
+
+    private func handleSelection(_ item: MediaItem) {
+        if NSEvent.modifierFlags.contains(.command) {
+            // Command+Click: 切换当前项选中状态
+            if selectionIDs.contains(item.id) {
+                selectionIDs.remove(item.id)
+            } else {
+                selectionIDs.insert(item.id)
+            }
+        } else {
+            // 普通点击: 单选
+            selectionIDs = [item.id]
+        }
     }
 }

@@ -10,37 +10,69 @@ struct SettingsView: View {
     @State private var alertMessage: String? // 错误提示
 
     var body: some View { // 主体
-        Form { // 表单
-            Section("系统") { // 系统设置
-                Toggle("开机自启", isOn: Binding( // 开机自启
-                    get: { autoLaunchEnabled }, // 获取当前状态
-                    set: { newValue in // 设置新值
-                        setAutoLaunch(newValue) // 应用开机自启
-                    }
-                ))
-                Toggle("显示菜单栏", isOn: $menuBarEnabled) // 菜单栏
-            }
-
-            Section("性能") { // 性能设置
-                Toggle("低功耗模式", isOn: $reduceVideoPower) // 低功耗
-            }
-
-            Section("外观") { // 外观设置
-                Picker("主题模式", selection: $themeMode) { // 主题模式
-                    Text("系统").tag("system") // 系统
-                    Text("明亮").tag("light") // 明亮
-                    Text("暗黑").tag("dark") // 暗黑
+        ScrollView {
+            VStack(spacing: 20) {
+                // 系统设置
+                GlassSection(title: "系统偏好", icon: "gear.circle.fill") {
+                    Toggle("开机自启", isOn: Binding( // 开机自启
+                        get: { autoLaunchEnabled }, // 获取当前状态
+                        set: { newValue in // 设置新值
+                            setAutoLaunch(newValue) // 应用开机自启
+                        }
+                    ))
+                    Divider().background(.white.opacity(0.1))
+                    Toggle("显示菜单栏图标", isOn: $menuBarEnabled) // 菜单栏
                 }
-                .pickerStyle(.segmented) // 分段样式
-                ColorPicker("主色彩", selection: themeColorBinding, supportsOpacity: true) // 主题色
-            }
 
-            Section("说明") { // 说明
-                Text("开机自启需要系统批准，可在系统设置 > 登录项中查看。") // 提示
-                    .foregroundStyle(.secondary) // 次级颜色
+                // 性能设置
+                GlassSection(title: "性能优化", icon: "bolt.circle.fill") {
+                    Toggle("低功耗模式", isOn: $reduceVideoPower) // 低功耗
+                    Text("启用后将减少视频壁纸的帧率以节省电量。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                // 外观设置
+                GlassSection(title: "界面外观", icon: "paintbrush.fill") {
+                    HStack {
+                        Text("主题模式")
+                        Spacer()
+                        Picker("", selection: $themeMode) { // 主题模式
+                            Text("系统").tag("system") // 系统
+                            Text("明亮").tag("light") // 明亮
+                            Text("暗黑").tag("dark") // 暗黑
+                        }
+                        .pickerStyle(.segmented) // 分段样式
+                        .frame(width: 150)
+                    }
+                    Divider().background(.white.opacity(0.1))
+                    ColorPicker("主题主色调", selection: themeColorBinding, supportsOpacity: true) // 主题色
+                }
+
+                // 说明
+                GlassSection(title: "关于", icon: "info.circle.fill") {
+                    Text("Wallpaper Pro Max")
+                        .font(.headline)
+                    Text("Version 1.0.0")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if autoLaunchEnabled {
+                        Text("✅ 开机自启已启用")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                            .padding(.top, 4)
+                    } else {
+                         Text("ℹ️ 开机自启需要系统批准，可在系统设置 > 登录项中查看。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 4)
+                    }
+                }
             }
+            .padding()
         }
-        .padding() // 内边距
+        .background(Color.clear)
         .onAppear { // 进入时同步状态
             autoLaunchEnabled = AutoLaunchService.isEnabled() // 同步开机自启
         }
@@ -55,24 +87,59 @@ struct SettingsView: View {
     }
 
     private func setAutoLaunch(_ enabled: Bool) { // 设置开机自启
+        // ... (保持不变)
         do {
             try AutoLaunchService.setEnabled(enabled) // 调用系统 API
             autoLaunchEnabled = AutoLaunchService.isEnabled() // 读取真实状态
-            NSLog("[设置] 开机自启状态：\\(autoLaunchEnabled)") // 日志
+            NSLog("[设置] 开机自启状态：\(autoLaunchEnabled)") // 日志
         } catch {
-            alertMessage = "开机自启设置失败：\\(error.localizedDescription)" // 提示错误
+            alertMessage = "开机自启设置失败：\(error.localizedDescription)" // 提示错误
             autoLaunchEnabled = AutoLaunchService.isEnabled() // 回滚状态
-            NSLog("[设置] 开机自启失败：\\(error.localizedDescription)") // 日志
+            NSLog("[设置] 开机自启失败：\(error.localizedDescription)") // 日志
         }
     }
 
     private var themeColorBinding: Binding<Color> { // 主题色绑定
+        // ... (保持不变)
         Binding( // 创建绑定
             get: { ThemeColor.color(from: themeColorHex) }, // 读取颜色
             set: { newColor in // 设置颜色
                 themeColorHex = ThemeColor.hex(from: newColor) // 保存主题色
-                NSLog("[设置] 主题色更新：\\(themeColorHex)") // 日志
+                NSLog("[设置] 主题色更新：\(themeColorHex)") // 日志
             }
         )
     }
 }
+
+// GlassSection：复用玻璃容器组件
+struct GlassSection<Content: View>: View {
+    let title: String
+    let icon: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: icon)
+                    .foregroundStyle(.blue)
+                    .font(.title3)
+                Text(title)
+                    .font(.headline)
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                content
+            }
+        }
+        .padding(20)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(.white.opacity(0.2), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+    }
+}
+
+

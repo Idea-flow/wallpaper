@@ -518,21 +518,118 @@ struct ScreenHelper { // 工具结构
 // View 扩展：封装 Liquid Glass 样式
 extension View {
     @ViewBuilder
-    func glassSurface(cornerRadius: CGFloat) -> some View { // 玻璃容器
-        if #available(macOS 26, *) { // macOS 26+ 使用玻璃
-            self.glassEffect(.regular, in: .rect(cornerRadius: cornerRadius)) // 玻璃效果
-        } else { // 低版本回退
-            self.background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius)) // 材质背景
+    func glassSurface(cornerRadius: CGFloat = 16) -> some View { // 玻璃容器
+        self.background {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(.ultraThinMaterial) // 磨砂背景
+                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5) // 柔和阴影
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(.white.opacity(0.2), lineWidth: 0.5) // 精致描边
         }
     }
 
     @ViewBuilder
     func glassActionButtonStyle() -> some View { // 玻璃按钮样式
-        if #available(macOS 26, *) { // macOS 26+
-            self.buttonStyle(.glassProminent) // 玻璃按钮
-        } else { // 低版本回退
-            self.buttonStyle(.borderedProminent) // 默认按钮
+        self.buttonStyle(GlassButtonStyle())
+    }
+}
+
+struct GlassButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background {
+                Capsule()
+                    .fill(configuration.isPressed ? .thickMaterial : .regularMaterial)
+            }
+            .overlay {
+                Capsule()
+                    .stroke(.white.opacity(0.2), lineWidth: 0.5)
+            }
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeInOut(duration: 0.2), value: configuration.isPressed)
+    }
+}
+
+// MediaCard：网格布局使用的卡片视图
+struct MediaCard: View {
+    let item: MediaItem
+    let isSelected: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack {
+                if item.type == .image {
+                    let result = MediaAccessService.loadImageResult(for: item)
+                    if let image = result.image {
+                        Image(nsImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(height: 120)
+                            .clipped()
+                    } else {
+                        placeholder
+                    }
+                } else {
+                    placeholder // 视频或其他
+                }
+
+                // 选中状态遮罩
+                if isSelected {
+                    Rectangle()
+                        .fill(.blue.opacity(0.2))
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.white)
+                        .font(.title)
+                        .shadow(radius: 2)
+                }
+            }
+            .frame(height: 120)
+            .background(Color.black.opacity(0.1))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.fileURL.lastPathComponent)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .foregroundStyle(.primary)
+
+                HStack {
+                    if item.type == .video {
+                        Image(systemName: "video.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    if item.isFavorite {
+                        Image(systemName: "heart.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.red)
+                    }
+                    Spacer()
+                }
+            }
+            .padding(8)
+            .background(.ultraThinMaterial)
         }
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(isSelected ? Color.accentColor : Color.white.opacity(0.2), lineWidth: isSelected ? 2 : 0.5)
+        )
+        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+        .contentShape(Rectangle()) // 确保整个区域可点击
+    }
+
+    var placeholder: some View {
+        ZStack {
+            Rectangle().fill(.quaternary)
+            Image(systemName: item.type == .video ? "film" : "photo")
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+        }
+        .frame(height: 120)
     }
 }
 

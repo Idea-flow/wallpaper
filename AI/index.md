@@ -105,3 +105,7 @@ Item.swift：SwiftData 模型，仅含一个 timestamp 字段。
 
 
 
+# 使用 ui-ux-pro-mac优化页面
+ 这是一个macos的壁纸系统,使用swiftui,
+使用 ui-ux-pro-mac技能, 重构这个项目所有页面的ui和布局,优先使用苹果的Liquid Glass,
+ 需要有点特色和创新

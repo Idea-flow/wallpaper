@@ -11,14 +11,29 @@ struct AlbumsView: View {
     @State private var showingCreate = false // 是否显示创建弹窗
     @State private var newAlbumName = "" // 新相册名称
 
+    // 定义网格列布局
+    private let columns = [
+        GridItem(.adaptive(minimum: 160, maximum: 220), spacing: 20)
+    ]
+
     var body: some View { // 主体
-        List(selection: $selectedAlbumID) { // 列表
-            ForEach(albums) { album in // 遍历相册
-                Text(album.name) // 相册名称
-                    .tag(album.id) // 绑定选择
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 20) {
+                ForEach(albums) { album in
+                    AlbumCard(album: album, isSelected: selectedAlbumID == album.id)
+                        .onTapGesture {
+                            selectedAlbumID = album.id
+                        }
+                        .contextMenu {
+                            Button("删除相册", role: .destructive) {
+                                modelContext.delete(album)
+                            }
+                        }
+                }
             }
-            .onDelete(perform: deleteAlbums) // 删除
+            .padding()
         }
+        .background(Color.clear)
         .toolbar { // 工具栏
             Button { // 新建相册
                 newAlbumName = "" // 清空名称
@@ -45,11 +60,65 @@ struct AlbumsView: View {
         modelContext.insert(album) // 保存
         selectedAlbumID = album.id // 选中
     }
+}
 
-    private func deleteAlbums(offsets: IndexSet) { // 删除相册
-        for index in offsets { // 遍历
-            modelContext.delete(albums[index]) // 删除
+// AlbumCard: 玻璃拟态相册卡片
+struct AlbumCard: View {
+    let album: Album
+    let isSelected: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ZStack {
+                Rectangle()
+                    .fill(.quaternary)
+
+                if let firstItem = album.items.first {
+                    // 显示封面（第一张图）
+                     // 这里简单复用 ThumbnailLogic，实际可以抽离
+                    if firstItem.type == .image, let image = MediaAccessService.loadImageResult(for: firstItem).image {
+                        Image(nsImage: image)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        Image(systemName: firstItem.type == .video ? "film" : "photo")
+                             .font(.largeTitle)
+                             .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Image(systemName: "photo.on.rectangle")
+                        .font(.largeTitle)
+                        .foregroundStyle(.secondary)
+                }
+
+                // 选中状态
+                if isSelected {
+                    ContainerRelativeShape()
+                        .inset(by: -2)
+                        .stroke(Color.accentColor, lineWidth: 2)
+                }
+            }
+            .frame(height: 120)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            HStack {
+                Text(album.name)
+                    .font(.headline)
+                    .lineLimit(1)
+                Spacer()
+                Text("\(album.items.count)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+            }
+            .padding(12)
         }
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
     }
 }
 
@@ -62,6 +131,11 @@ struct AlbumDetailView: View {
 
     @State private var showingAddSheet = false // 是否显示添加素材
     @State private var selectedItemIDs = Set<UUID>() // 选择的素材 ID
+
+    // 复用网格配置
+    private let columns = [
+        GridItem(.adaptive(minimum: 140, maximum: 200), spacing: 16)
+    ]
 
     var body: some View { // 主体
         VStack(alignment: .leading, spacing: 12) { // 垂直布局
@@ -78,20 +152,38 @@ struct AlbumDetailView: View {
             if album.items.isEmpty { // 空相册
                 ContentUnavailableView("相册为空", systemImage: "rectangle.stack") // 占位
             } else {
-                List { // 列表
-                    ForEach(album.items) { item in // 遍历素材
-                        MediaRow(item: item) // 行
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        ForEach(album.items) { item in // 遍历素材
+                            MediaCard(item: item, isSelected: false) // 复用 MediaCard，此处暂不支持相册内选中
+                                .contextMenu {
+                                    Button("移出相册", role: .destructive) {
+                                        removeFromAlbum(item)
+                                    }
+                                }
+                        }
                     }
-                    .onDelete(perform: removeItems) // 删除
+                    .padding()
                 }
             }
         }
         .padding() // 内边距
         .sheet(isPresented: $showingAddSheet) { // 添加素材弹窗
             NavigationStack { // 导航
-                List(allItems, selection: $selectedItemIDs) { item in // 列表
-                    MediaRow(item: item) // 行
-                        .tag(item.id) // 绑定
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        ForEach(allItems) { item in
+                            MediaCard(item: item, isSelected: selectedItemIDs.contains(item.id))
+                                .onTapGesture {
+                                    if selectedItemIDs.contains(item.id) {
+                                        selectedItemIDs.remove(item.id)
+                                    } else {
+                                        selectedItemIDs.insert(item.id)
+                                    }
+                                }
+                        }
+                    }
+                    .padding()
                 }
                 .navigationTitle("选择素材") // 标题
                 .toolbar { // 工具栏
@@ -108,20 +200,21 @@ struct AlbumDetailView: View {
         }
     }
 
-    private func addSelectedItems() { // 添加素材
-        let selected = allItems.filter { selectedItemIDs.contains($0.id) } // 找到选中
-        for item in selected { // 遍历
-            if !album.items.contains(where: { $0.id == item.id }) { // 避免重复
-                album.items.append(item) // 添加
-            }
+    private func removeFromAlbum(_ item: MediaItem) {
+        if let index = album.items.firstIndex(where: { $0.id == item.id }) {
+            album.items.remove(at: index)
+            try? modelContext.save()
         }
-        try? modelContext.save() // 保存
     }
 
-    private func removeItems(offsets: IndexSet) { // 删除素材
-        for index in offsets { // 遍历
-            album.items.remove(at: index) // 移除
+    private func addSelectedItems() {
+        let selected = allItems.filter { selectedItemIDs.contains($0.id) }
+        for item in selected {
+            if !album.items.contains(where: { $0.id == item.id }) {
+                album.items.append(item)
+            }
         }
-        try? modelContext.save() // 保存
+        try? modelContext.save()
     }
+
 }
