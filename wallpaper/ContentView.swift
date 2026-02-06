@@ -28,29 +28,45 @@ struct ContentView: View {
 
     @State private var selectionID: UUID? // 选中素材的 ID
     private var selectedItem: MediaItem? { items.first { $0.id == selectionID } } // 通过 ID 找到素材
+    @Query(sort: \Album.name, order: .forward) private var albums: [Album] // 相册列表
+    @State private var selectedAlbumID: UUID? // 选中相册 ID
+    private var selectedAlbum: Album? { albums.first { $0.id == selectedAlbumID } } // 当前相册
     @State private var sidebarSelection: SidebarSection = .library // 当前侧栏选择
     @State private var showingImporter = false // 是否展示导入弹窗
     @State private var alertMessage: String? // 提示消息
     @State private var isSettingWallpaper = false // 是否在设置壁纸
     @State private var selectedFitMode: FitMode = .fill // 预览/设置适配模式
     @State private var selectedScreenID: String = "all" // 选择屏幕（all 表示全部）
+    @State private var searchText = "" // 搜索文本
+    @State private var filterType: MediaType? = nil // 类型筛选
+    @State private var showFavoritesOnly = false // 仅收藏
 
     var body: some View { // 主界面
         NavigationSplitView { // 三栏布局
             List(SidebarSection.allCases, selection: $sidebarSelection) { section in // 侧栏列表
                 Label(section.rawValue, systemImage: section.systemImage) // 侧栏行
+                    .tag(section) // 绑定选择
+                    .contentShape(Rectangle()) // 扩大可点击区域
             }
+            .listStyle(.sidebar) // 侧栏样式
             .navigationSplitViewColumnWidth(min: 180, ideal: 220) // 侧栏宽度
         } content: { // 中间栏内容
             switch sidebarSelection { // 根据侧栏切换
             case .library:
-                libraryList // 素材库
+                LibraryView( // 素材库视图
+                    selectionID: $selectionID, // 选中绑定
+                    searchText: $searchText, // 搜索绑定
+                    filterType: $filterType, // 类型绑定
+                    showFavoritesOnly: $showFavoritesOnly // 收藏绑定
+                ) { // 导入回调
+                    showingImporter = true // 打开导入
+                }
             case .albums:
-                placeholderView(title: "Albums", subtitle: "Create collections for different moods.") // 占位
+                AlbumsView(selectedAlbumID: $selectedAlbumID) // 相册列表
             case .rules:
-                placeholderView(title: "Rules", subtitle: "Schedule and automation live here.") // 占位
+                RulesView() // 规则列表
             case .settings:
-                placeholderView(title: "Settings", subtitle: "System integration and preferences.") // 占位
+                SettingsView() // 设置
             }
         } detail: { // 右侧详情
             detailView // 详情视图
@@ -72,49 +88,35 @@ struct ContentView: View {
         }
     }
 
-    private var libraryList: some View { // 素材库列表
-        List(selection: $selectionID) { // 列表与选择绑定
-            ForEach(items) { item in // 遍历素材
-                MediaRow(item: item) // 列表行
-                    .tag(item.id) // 用 ID 标记
-            }
-            .onDelete(perform: deleteItems) // 支持删除
-        }
-        .toolbar { // 工具栏
-            Button {
-                showingImporter = true // 打开导入弹窗
-            } label: {
-                Label("导入素材", systemImage: "plus") // 导入按钮
-            }
-        }
-    }
-
     private var detailView: some View { // 详情区域
         Group {
-            if let item = selectedItem { // 有选中素材
-                MediaDetailView( // 详情视图
-                    item: item, // 素材
-                    fitMode: $selectedFitMode, // 适配模式绑定
-                    selectedScreenID: $selectedScreenID, // 选择屏幕绑定
-                    isSettingWallpaper: $isSettingWallpaper // 设置状态绑定
-                ) {
-                    applyWallpaper(for: item, fitMode: selectedFitMode, screenID: selectedScreenID) // 执行设置壁纸
+            switch sidebarSelection { // 按模块显示详情
+            case .library:
+                if let item = selectedItem { // 有选中素材
+                    MediaDetailView( // 详情视图
+                        item: item, // 素材
+                        fitMode: $selectedFitMode, // 适配模式绑定
+                        selectedScreenID: $selectedScreenID, // 选择屏幕绑定
+                        isSettingWallpaper: $isSettingWallpaper // 设置状态绑定
+                    ) {
+                        applyWallpaper(for: item, fitMode: selectedFitMode, screenID: selectedScreenID) // 执行设置壁纸
+                    }
+                } else {
+                    ContentUnavailableView("请选择一张图片", systemImage: "photo") // 无选择占位
                 }
-            } else {
-                ContentUnavailableView("请选择一张图片", systemImage: "photo") // 无选择占位
+            case .albums:
+                if let album = selectedAlbum { // 有选中相册
+                    AlbumDetailView(album: album) // 相册详情
+                } else {
+                    ContentUnavailableView("请选择相册", systemImage: "rectangle.stack") // 无选择占位
+                }
+            case .rules:
+                ContentUnavailableView("请选择规则", systemImage: "clock.arrow.circlepath") // 规则占位
+            case .settings:
+                ContentUnavailableView("设置项在左侧", systemImage: "gearshape") // 设置占位
             }
         }
         .padding() // 内边距
-    }
-
-    private func placeholderView(title: String, subtitle: String) -> some View { // 占位视图
-        VStack(spacing: 12) { // 垂直布局
-            Text(title) // 标题
-                .font(.title) // 标题字号
-            Text(subtitle) // 副标题
-                .foregroundStyle(.secondary) // 次要颜色
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity) // 占满空间
     }
 
     private func handleImport(_ result: Result<[URL], Error>) { // 处理导入
@@ -135,12 +137,6 @@ struct ContentView: View {
             modelContext.insert(result.item) // 写入数据库
         } catch {
             alertMessage = "导入失败：\(url.lastPathComponent)" // 提示失败
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) { // 删除素材
-        for index in offsets { // 遍历删除索引
-            modelContext.delete(items[index]) // 删除对象
         }
     }
 
