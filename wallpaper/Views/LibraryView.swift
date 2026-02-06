@@ -224,7 +224,7 @@ struct LibraryView: View {
 
     private func gridColumns(for width: CGFloat) -> [GridItem] {
         let usableWidth = max(width - 32, cardMinWidth)
-        let count = max(Int(usableWidth / cardMinWidth), 2)
+        let count = max(Int(usableWidth / cardMinWidth), 1)
         return Array(repeating: GridItem(.flexible(), spacing: 16), count: count)
     }
 }

@@ -112,9 +112,30 @@ struct MediaDetailView: View {
                 Button {
                     onApply() // 点击设置壁纸
                 } label: {
-                    Label(isSettingWallpaper ? "设置中..." : "设为壁纸", systemImage: "sparkles") // 文案
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles")
+                            .font(.subheadline)
+                        Text(isSettingWallpaper ? "设置中…" : "设为壁纸")
+                            .font(.subheadline)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
                 }
-                .glassActionButtonStyle() // 玻璃样式
+                .buttonStyle(.plain)
+                .background {
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [.white.opacity(0.28), .white.opacity(0.10)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                }
+                .overlay {
+                    Capsule()
+                        .stroke(.white.opacity(0.45), lineWidth: 0.8)
+                }
                 .disabled(isSettingWallpaper) // 设置中禁用
             }
         }
@@ -130,7 +151,6 @@ struct MediaDetailView: View {
             }
         }
         .padding(12) // 内边距
-        .glassSurface(cornerRadius: 14) // 玻璃容器
     }
 
     private var infoSection: some View { // 元信息
@@ -144,7 +164,6 @@ struct MediaDetailView: View {
             }
         }
         .padding(12) // 内边距
-        .glassSurface(cornerRadius: 14) // 玻璃容器
     }
 
     private var editSection: some View { // 编辑区域
@@ -157,14 +176,13 @@ struct MediaDetailView: View {
                 tagsEditor // 标签
                 Spacer(minLength: 0)
             }
-            if item.type == .video { // 视频权限按钮
-                Button("重新授权视频文件") { // 重新授权
-                    reselectFile() // 重新选择
-                }
-            }
+//             if item.type == .video { // 视频权限按钮
+//                 Button("重新授权视频文件") { // 重新授权
+//                     reselectFile() // 重新选择
+//                 }
+//             }
         }
         .padding(12) // 内边距
-        .glassSurface(cornerRadius: 14) // 玻璃容器
     }
 
     private var fitModePicker: some View { // 适配模式选择器
@@ -180,7 +198,6 @@ struct MediaDetailView: View {
             }
             .pickerStyle(.segmented) // 分段样式
             .padding(4)
-            .glassControl(cornerRadius: 10)
         }
     }
 
@@ -198,7 +215,6 @@ struct MediaDetailView: View {
             }
             .pickerStyle(.segmented) // 分段样式
             .padding(4)
-            .glassControl(cornerRadius: 10)
         }
     }
 

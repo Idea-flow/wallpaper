@@ -5,6 +5,7 @@ import UniformTypeIdentifiers // 文件类型识别
 
 // ContentView：主界面，包含侧栏、列表和详情预览
 struct ContentView: View {
+    @AppStorage("themeColorHex") private var themeColorHex = ThemeColor.defaultHex // 主题色
     // SidebarSection：侧栏分类
     enum SidebarSection: String, CaseIterable, Identifiable {
         case library = "素材库" // 素材库
@@ -61,6 +62,7 @@ struct ContentView: View {
             }
             .listStyle(.sidebar) // 侧栏样式
             .navigationSplitViewColumnWidth(min: 180, ideal: 220) // 侧栏宽度
+            .tint(ThemeColor.color(from: themeColorHex)) // 选中颜色跟随主题色
         } content: { // 中间栏内容
             contentColumn // 内容列
         } detail: { // 右侧详情

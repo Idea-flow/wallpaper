@@ -76,7 +76,7 @@ struct RuleListRow: View {
                     .font(.headline)
                 Text(rule.enabled ? "已启用" : "已停用")
                     .font(.caption)
-                    .foregroundStyle(rule.enabled ? .green : .secondary)
+                    .foregroundStyle(rule.enabled ? .secondary : .secondary)
             }
             Spacer()
         }
@@ -87,7 +87,6 @@ struct RuleListRow: View {
                     .labelsHidden()
                     .toggleStyle(.switch)
             }
-            .glassCapsuleBackground()
         }
         .padding(.vertical, 4)
     }
@@ -118,97 +117,97 @@ struct RuleDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                TextField("规则名称", text: nameBinding)
-                    .textFieldStyle(.roundedBorder)
-
-                HStack(spacing: 12) {
-                    Text("启用规则")
-                    Spacer(minLength: 12)
-                    Toggle("", isOn: $rule.enabled)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                }
-                .glassCapsuleBackground()
-
-                HStack {
-                    Text("切换间隔")
-                    Spacer()
-                    Stepper("\(rule.intervalMinutes ?? 60) 分钟", value: intervalBinding, in: 5...1440, step: 5)
-                }
-
-                HStack {
-                    Text("范围")
-                    Picker("", selection: $rule.scopeRaw) {
-                        Text("全局").tag(RuleScope.global.rawValue)
-                        Text("单屏").tag(RuleScope.screen.rawValue)
+            VStack(alignment: .leading, spacing: 12) {
+                sectionHeader("基础")
+                VStack(spacing: 12) {
+                    TextField("规则名称", text: nameBinding)
+                        .textFieldStyle(.roundedBorder)
+                    HStack(spacing: 12) {
+                        Text("启用规则")
+                        Spacer(minLength: 12)
+                        Toggle("", isOn: $rule.enabled)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
                     }
-                    .pickerStyle(.segmented)
-                    .padding(4)
-                    .glassControl(cornerRadius: 10)
+                    .glassCapsuleBackground()
+                    row("切换间隔") {
+                        HStack(spacing: 10) {
+                            Stepper("\(rule.intervalMinutes ?? 60) 分钟", value: intervalBinding, in: 1...1440, step: 1)
+                            TextField("分钟", value: intervalBinding, format: .number)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 72, height: 26)
+                        }
+                    }
                 }
+                .padding(12)
+                .glassPanel(cornerRadius: 14)
 
-                if rule.scope == .screen {
-                    HStack {
-                        Text("屏幕")
-                        Picker("", selection: Binding(
-                            get: { rule.screenID ?? "" },
-                            set: { rule.screenID = $0.isEmpty ? nil : $0 }
-                        )) {
-                            ForEach(ScreenHelper.screenOptions()) { option in
-                                Text(option.title).tag(option.id)
+                sectionHeader("范围")
+                VStack(spacing: 12) {
+                    row("范围") {
+                        Picker("", selection: $rule.scopeRaw) {
+                            Text("全局").tag(RuleScope.global.rawValue)
+                            Text("单屏").tag(RuleScope.screen.rawValue)
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    if rule.scope == .screen {
+                        row("屏幕") {
+                            Picker("", selection: Binding(
+                                get: { rule.screenID ?? "" },
+                                set: { rule.screenID = $0.isEmpty ? nil : $0 }
+                            )) {
+                                ForEach(ScreenHelper.screenOptions()) { option in
+                                    Text(option.title).tag(option.id)
+                                }
                             }
                         }
                     }
                 }
+                .padding(12)
+                .glassPanel(cornerRadius: 14)
 
-                HStack {
-                    Text("相册")
-                    Picker("", selection: Binding(
-                        get: { rule.album?.id ?? allAlbumID },
-                        set: { newValue in
-                            rule.album = newValue == allAlbumID ? nil : albums.first { $0.id == newValue }
-                        }
-                    )) {
-                        Text("全部素材").tag(allAlbumID)
-                        ForEach(albums) { album in
-                            Text(album.name).tag(album.id)
+                sectionHeader("素材")
+                VStack(spacing: 12) {
+                    row("相册") {
+                        Picker("", selection: Binding(
+                            get: { rule.album?.id ?? allAlbumID },
+                            set: { newValue in
+                                rule.album = newValue == allAlbumID ? nil : albums.first { $0.id == newValue }
+                            }
+                        )) {
+                            Text("全部素材").tag(allAlbumID)
+                            ForEach(albums) { album in
+                                Text(album.name).tag(album.id)
+                            }
                         }
                     }
-                    .padding(4)
-                    .glassControl(cornerRadius: 10)
                 }
+                .padding(12)
+                .glassPanel(cornerRadius: 14)
 
-                WeekdayPicker(selected: Binding(
-                    get: { Set(rule.weekdays) },
-                    set: { rule.weekdays = Array($0).sorted() }
-                ))
-
-                TimeRangePicker(
-                    startMinutes: $rule.startMinutes,
-                    endMinutes: $rule.endMinutes
-                )
-
-                HStack {
-                    Text("随机策略")
-                    Picker("", selection: $rule.randomStrategyRaw) {
-                        Text("均匀").tag(RandomStrategy.uniform.rawValue)
-                        Text("权重").tag(RandomStrategy.weighted.rawValue)
-                        Text("避免近期重复").tag(RandomStrategy.avoidRecent.rawValue)
+                sectionHeader("策略")
+                VStack(spacing: 12) {
+                    row("随机策略") {
+                        Picker("", selection: $rule.randomStrategyRaw) {
+                            Text("均匀").tag(RandomStrategy.uniform.rawValue)
+                            Text("权重").tag(RandomStrategy.weighted.rawValue)
+                            Text("避免近期重复").tag(RandomStrategy.avoidRecent.rawValue)
+                        }
+                        .pickerStyle(.segmented)
                     }
-                    .pickerStyle(.segmented)
-                    .padding(4)
-                    .glassControl(cornerRadius: 10)
+                    row("视频比例") {
+                        HStack(spacing: 10) {
+                            Slider(value: $rule.mediaMixRatio, in: 0...1, step: 0.1)
+                            Text(String(format: "%.0f%%", rule.mediaMixRatio * 100))
+                                .frame(width: 52, alignment: .trailing)
+                        }
+                    }
                 }
-
-                HStack {
-                    Text("视频比例")
-                    Slider(value: $rule.mediaMixRatio, in: 0...1, step: 0.1)
-                    Text(String(format: "%.0f%%", rule.mediaMixRatio * 100))
-                        .frame(width: 60, alignment: .trailing)
-                }
+                .padding(12)
+                .glassPanel(cornerRadius: 14)
             }
-            .padding()
+            .padding(16)
         }
         .scrollIndicators(.hidden)
         .background(Color.clear)
@@ -281,7 +280,6 @@ struct WeekdayPicker: View {
 
     var body: some View {
         HStack {
-            Text("工作日")
             ForEach(1...7, id: \.self) { day in
                 let isSelected = selected.wrappedValue.contains(day)
                 Text(symbols[day - 1])
@@ -326,17 +324,23 @@ struct TimeRangePicker: View {
     @Binding var endMinutes: Int?
 
     var body: some View {
-        HStack {
-            Text("时间段")
-            DatePicker("开始", selection: startBinding, displayedComponents: .hourAndMinute)
+        HStack(spacing: 8) {
+            Text("开始")
+                .foregroundStyle(.secondary)
+            DatePicker("", selection: startBinding, displayedComponents: .hourAndMinute)
                 .labelsHidden()
-            DatePicker("结束", selection: endBinding, displayedComponents: .hourAndMinute)
+                .datePickerStyle(.compact)
+            Text("结束")
+                .foregroundStyle(.secondary)
+            DatePicker("", selection: endBinding, displayedComponents: .hourAndMinute)
                 .labelsHidden()
+                .datePickerStyle(.compact)
             Button("清除") {
                 startMinutes = nil
                 endMinutes = nil
             }
-            .glassActionButtonStyle()
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
         }
     }
 
@@ -368,6 +372,21 @@ struct TimeRangePicker: View {
 }
 
 extension RuleDetailView {
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.headline)
+            .foregroundStyle(.secondary)
+    }
+
+    private func row<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Text(title)
+                .frame(width: 70, alignment: .leading)
+            content()
+            Spacer(minLength: 0)
+        }
+    }
+
     private var nameBinding: Binding<String> {
         Binding(
             get: { rule.name ?? "新规则" },

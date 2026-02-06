@@ -15,7 +15,7 @@ struct SettingsView: View {
         ScrollView {
             VStack(spacing: 20) {
                 // 系统设置
-                GlassSection(title: "系统偏好", icon: "gear.circle.fill") {
+                GlassSection(title: "系统偏好") {
                     capsuleToggle(
                         title: "开机自启",
                         isOn: Binding(
@@ -30,24 +30,28 @@ struct SettingsView: View {
                 }
 
                 // 性能设置
-                GlassSection(title: "性能优化", icon: "bolt.circle.fill") {
-                    capsuleToggle(title: "低功耗模式", isOn: $reduceVideoPower)
-                    Text("启用后将减少视频壁纸的帧率以节省电量。")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    HStack {
-                        Text("缩略图缓存") // 标题
-                        Spacer()
-                        Text(cacheSizeText) // 缓存大小
+                GlassSection(title: "性能优化") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        capsuleToggle(title: "低功耗模式", isOn: $reduceVideoPower)
+                        Text("启用后将减少视频壁纸的帧率以节省电量。")
+                            .font(.caption)
                             .foregroundStyle(.secondary)
+                        HStack {
+                            Text("缩略图缓存") // 标题
+                            Spacer()
+                            Text(cacheSizeText) // 缓存大小
+                                .foregroundStyle(.secondary)
+                        }
+                        Button("清理缓存") { // 清理缓存
+                            showingClearCacheConfirm = true // 显示确认
+                        }
+                        .glassCapsuleBackground()
                     }
-                    Button("清理缩略图缓存") { // 清理缓存
-                        showingClearCacheConfirm = true // 显示确认
-                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 // 外观设置
-                GlassSection(title: "界面外观", icon: "paintbrush.fill") {
+                GlassSection(title: "界面外观") {
                     HStack {
                         Text("主题模式")
                         Spacer()
@@ -82,24 +86,24 @@ struct SettingsView: View {
                 }
 
                 // 说明
-                GlassSection(title: "关于", icon: "info.circle.fill") {
+                GlassSection(title: "关于") {
                     Text("Wallpaper Pro Max")
                         .font(.headline)
                     Text("Version 1.0.0")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    if autoLaunchEnabled {
-                        Text("✅ 开机自启已启用")
-                            .font(.caption)
-                            .foregroundStyle(.green)
-                            .padding(.top, 4)
-                    } else {
-                         Text("ℹ️ 开机自启需要系统批准，可在系统设置 > 登录项中查看。")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.top, 4)
-                    }
+//                     if autoLaunchEnabled {
+//                         Text("开机自启已启用")
+//                             .font(.caption)
+//                             .foregroundStyle(.green)
+//                             .padding(.top, 4)
+//                     } else {
+//                          Text("开机自启需要系统批准，可在系统设置 > 登录项中查看。")
+//                             .font(.caption)
+//                             .foregroundStyle(.secondary)
+//                             .padding(.top, 4)
+//                     }
                 }
             }
             .padding()
@@ -163,23 +167,18 @@ struct SettingsView: View {
 // GlassSection：复用玻璃容器组件
 struct GlassSection<Content: View>: View {
     let title: String
-    let icon: String
     @ViewBuilder let content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundStyle(Color.accentColor)
-                    .font(.title3)
-                Text(title)
-                    .font(.headline)
-            }
+            Text(title)
+                .font(.headline)
 
             VStack(alignment: .leading, spacing: 12) {
                 content
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
         .glassPanel(cornerRadius: 16)
         .overlay(

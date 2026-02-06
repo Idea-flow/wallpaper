@@ -68,57 +68,56 @@ struct AlbumCard: View {
     let isSelected: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            ZStack {
-                Rectangle()
-                    .fill(.quaternary)
+        ZStack(alignment: .bottomLeading) {
+            Rectangle()
+                .fill(.quaternary)
 
-                if let firstItem = album.items.first {
-                    // 显示封面（第一张图）
-                     // 这里简单复用 ThumbnailLogic，实际可以抽离
-                    if firstItem.type == .image, let image = MediaAccessService.loadImageResult(for: firstItem).image {
-                        Image(nsImage: image)
-                            .resizable()
-                            .scaledToFill()
-                    } else {
-                        Image(systemName: firstItem.type == .video ? "film" : "photo")
-                             .font(.largeTitle)
-                             .foregroundStyle(.secondary)
-                    }
+            if let firstItem = album.items.first {
+                if firstItem.type == .image, let image = MediaAccessService.loadImageResult(for: firstItem).image {
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFill()
                 } else {
-                    Image(systemName: "photo.on.rectangle")
+                    Image(systemName: firstItem.type == .video ? "film" : "photo")
                         .font(.largeTitle)
                         .foregroundStyle(.secondary)
                 }
-
-                // 选中状态
-                if isSelected {
-                    ContainerRelativeShape()
-                        .inset(by: -2)
-                        .stroke(Color.accentColor, lineWidth: 2)
-                }
+            } else {
+                Image(systemName: "photo.on.rectangle")
+                    .font(.largeTitle)
+                    .foregroundStyle(.secondary)
             }
-            .frame(height: 120)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
 
-            HStack {
+            LinearGradient(
+                colors: [.black.opacity(0.0), .black.opacity(0.45)],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+
+            HStack(alignment: .center, spacing: 8) {
                 Text(album.name)
                     .font(.headline)
                     .lineLimit(1)
+                    .foregroundStyle(.white)
                 Spacer()
                 Text("\(album.items.count)")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Capsule())
+                    .foregroundStyle(.white.opacity(0.9))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.black.opacity(0.35), in: Capsule())
             }
             .padding(12)
         }
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
+        .frame(height: 140)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            if isSelected {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Color.accentColor, lineWidth: 2)
+            }
+        }
+        .shadow(color: .black.opacity(0.12), radius: 6, x: 0, y: 3)
     }
 }
 
@@ -133,10 +132,8 @@ struct AlbumDetailView: View {
     @State private var selectedItemIDs = Set<UUID>() // 选择的素材 ID
     @State private var viewMode: ViewMode = .grid // 视图模式
 
-    // 复用网格配置
-    private let columns = [
-        GridItem(.adaptive(minimum: 140, maximum: 200), spacing: 16)
-    ]
+    // 复用网格配置（宽度自适应）
+    private let gridMinWidth: CGFloat = 180
 
     private enum ViewMode: String { // 视图模式
         case grid // 网格
@@ -151,20 +148,24 @@ struct AlbumDetailView: View {
         .padding() // 内边距
         .sheet(isPresented: $showingAddSheet) { // 添加素材弹窗
             NavigationStack { // 导航
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(allItems) { item in
-                            MediaCard(item: item, isSelected: selectedItemIDs.contains(item.id))
-                                .onTapGesture {
-                                    if selectedItemIDs.contains(item.id) {
-                                        selectedItemIDs.remove(item.id)
-                                    } else {
-                                        selectedItemIDs.insert(item.id)
+                GeometryReader { proxy in
+                    let columns = gridColumns(for: proxy.size.width)
+                    ScrollView {
+                        LazyVGrid(columns: columns, spacing: 16) {
+                            ForEach(allItems) { item in
+                                MediaCard(item: item, isSelected: selectedItemIDs.contains(item.id))
+                                    .onTapGesture {
+                                        if selectedItemIDs.contains(item.id) {
+                                            selectedItemIDs.remove(item.id)
+                                        } else {
+                                            selectedItemIDs.insert(item.id)
+                                        }
                                     }
-                                }
+                            }
                         }
+                        .padding()
                     }
-                    .padding()
+                    .frame(width: proxy.size.width, height: proxy.size.height)
                 }
                 .navigationTitle("选择素材") // 标题
                 .toolbar { // 工具栏
@@ -215,18 +216,22 @@ struct AlbumDetailView: View {
         } else {
             switch viewMode {
             case .grid:
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(album.items) { item in
-                            MediaCard(item: item, isSelected: false)
-                                .contextMenu {
-                                    Button("移出相册", role: .destructive) {
-                                        removeFromAlbum(item)
+                GeometryReader { proxy in
+                    let columns = gridColumns(for: proxy.size.width)
+                    ScrollView {
+                        LazyVGrid(columns: columns, spacing: 16) {
+                            ForEach(album.items) { item in
+                                MediaCard(item: item, isSelected: false)
+                                    .contextMenu {
+                                        Button("移出相册", role: .destructive) {
+                                            removeFromAlbum(item)
+                                        }
                                     }
-                                }
+                            }
                         }
+                        .padding(.vertical, 8)
                     }
-                    .padding(.vertical, 8)
+                    .frame(width: proxy.size.width, height: proxy.size.height)
                 }
             case .list:
                 List {
@@ -277,6 +282,12 @@ struct AlbumDetailView: View {
             }
         }
         try? modelContext.save()
+    }
+
+    private func gridColumns(for width: CGFloat) -> [GridItem] { // 自适应列
+        let usableWidth = max(width - 32, gridMinWidth)
+        let count = max(Int(usableWidth / gridMinWidth), 2)
+        return Array(repeating: GridItem(.flexible(), spacing: 16), count: count)
     }
 
 }
