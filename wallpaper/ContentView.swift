@@ -278,10 +278,13 @@ struct ThumbnailView: View {
                             .lineLimit(1) // 单行
                     }
                 }
-            } else { // 非图片（视频或其他）
+            } else if item.type == .video { // 视频类型
+                VideoPlayerView(item: item, isMuted: true) // 视频缩略预览
+                    .clipShape(.rect(cornerRadius: 4)) // 圆角
+            } else { // 其他
                 Rectangle() // 占位背景
                     .fill(.quaternary) // 次级颜色
-                Image(systemName: item.type == .video ? "film" : "photo") // 图标
+                Image(systemName: "photo") // 图标
                     .foregroundStyle(.secondary) // 次级颜色
             }
         }
@@ -580,8 +583,12 @@ struct MediaCard: View {
                     } else {
                         placeholder
                     }
+                } else if item.type == .video {
+                    VideoPlayerView(item: item, isMuted: true)
+                        .frame(height: 120)
+                        .clipShape(.rect(cornerRadius: 8))
                 } else {
-                    placeholder // 视频或其他
+                    placeholder // 其他
                 }
 
                 // 选中状态遮罩

@@ -23,19 +23,20 @@ struct LibraryView: View {
         case list // 列表
     }
 
-    // 定义网格列布局
-    private let columns = [
-        GridItem(.adaptive(minimum: 140, maximum: 200), spacing: 16)
-    ]
+    // 基准单元宽度
+    private let cardMinWidth: CGFloat = 190
 
     var body: some View { // 主体
         Group {
             if viewMode == .grid { // 网格模式
                 GeometryReader { geometry in
+                    let columns = gridColumns(for: geometry.size.width)
                     ScrollView {
                         LazyVGrid(columns: columns, spacing: 16) {
                             ForEach(filteredItems) { item in
                                 MediaCard(item: item, isSelected: selectionIDs.contains(item.id))
+                                    .frame(minWidth: cardMinWidth)
+                                    .contentShape(Rectangle())
                                     .onTapGesture {
                                         handleSelection(item)
                                     }
@@ -51,7 +52,7 @@ struct LibraryView: View {
                                     }
                             }
                         }
-                        .padding()
+                        .padding(16)
                     }
                     .frame(width: geometry.size.width, height: geometry.size.height)
                 }
@@ -200,5 +201,11 @@ struct LibraryView: View {
             // 普通点击: 单选
             selectionIDs = [item.id]
         }
+    }
+
+    private func gridColumns(for width: CGFloat) -> [GridItem] {
+        let usableWidth = max(width - 32, cardMinWidth)
+        let count = max(Int(usableWidth / cardMinWidth), 2)
+        return Array(repeating: GridItem(.flexible(), spacing: 16), count: count)
     }
 }
