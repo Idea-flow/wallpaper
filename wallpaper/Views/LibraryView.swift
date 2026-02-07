@@ -133,21 +133,24 @@ struct LibraryView: View {
                 Button { // 所有类型
                     filterType = nil // 清空筛选
                 } label: {
-                    Text("全部类型") // 文案
+                    filterMenuLabel("全部类型", selected: filterType == nil) // 文案
                 }
                 Button { // 仅图片
                     filterType = .image // 过滤图片
                 } label: {
-                    Text("仅图片") // 文案
+                    filterMenuLabel("仅图片", selected: filterType == .image) // 文案
                 }
                 Button { // 仅视频
                     filterType = .video // 过滤视频
                 } label: {
-                    Text("仅视频") // 文案
+                    filterMenuLabel("仅视频", selected: filterType == .video) // 文案
                 }
                 Divider() // 分隔线
-                Toggle("仅收藏", isOn: $showFavoritesOnly) // 收藏过滤
-                    .glassCapsuleBackground()
+                Button { // 仅收藏
+                    showFavoritesOnly.toggle() // 切换收藏过滤
+                } label: {
+                    filterMenuLabel("仅收藏", selected: showFavoritesOnly) // 文案
+                }
             } label: {
                 Label("筛选", systemImage: "line.3.horizontal.decrease.circle") // 图标
             }
@@ -179,6 +182,18 @@ struct LibraryView: View {
             let tagMatch = item.tags.localizedStandardContains(searchText) // 标签匹配
             return nameMatch || tagMatch // 返回
         }
+    }
+
+    private func filterMenuLabel(_ title: String, selected: Bool) -> some View {
+        HStack {
+            Text(title)
+            Spacer(minLength: 8)
+            if selected {
+                Image(systemName: "checkmark")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(minWidth: 120)
     }
 
     private func deleteItems(offsets: IndexSet) { // 删除
