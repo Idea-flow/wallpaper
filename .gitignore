@@ -80,3 +80,5 @@ node_modules/
 *.xcresult
 
 # Keep lockfiles (Package.resolved) if you want reproducible builds; currently ignored above — adjust to project policy.
+
+.shared
