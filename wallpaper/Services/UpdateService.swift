@@ -131,8 +131,12 @@ enum UpdateService {
     }
 
     static func revealInFinder(_ url: URL) {
-        LogCenter.log("[更新] 打开下载文件夹：\(url.deletingLastPathComponent().path)")
-        NSWorkspace.shared.open(url.deletingLastPathComponent())
+        LogCenter.log("[更新] 在 Finder 中显示下载文件：\(url.lastPathComponent)")
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+        if !FileManager.default.fileExists(atPath: url.path) {
+            LogCenter.log("[更新] 下载文件不存在，改为打开目录：\(url.deletingLastPathComponent().path)", level: .warning)
+            NSWorkspace.shared.open(url.deletingLastPathComponent())
+        }
     }
 
     static func currentVersionString() -> String {
@@ -159,12 +163,27 @@ enum UpdateService {
 
     private static func resolveDownloadDirectory() async throws -> URL {
         let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
-        if let downloads, FileManager.default.isWritableFile(atPath: downloads.path) {
-            LogCenter.log("[更新] 使用下载文件夹：\(downloads.path)")
-            return downloads
+        if let downloads {
+            let isSandboxPath = downloads.path.contains("/Library/Containers/")
+            if !isSandboxPath, FileManager.default.isWritableFile(atPath: downloads.path) {
+                LogCenter.log("[更新] 使用系统下载文件夹：\(downloads.path)")
+                return downloads
+            }
+            if isSandboxPath {
+                LogCenter.log("[更新] 检测到沙盒下载目录，尝试申请用户下载文件夹权限", level: .warning)
+            } else {
+                LogCenter.log("[更新] 下载文件夹无权限，申请用户授权", level: .warning)
+            }
         }
-        LogCenter.log("[更新] 下载文件夹无权限，申请用户授权", level: .warning)
-        return try await requestDownloadDirectory(defaultURL: downloads)
+        do {
+            return try await requestDownloadDirectory(defaultURL: downloads)
+        } catch {
+            if let downloads {
+                LogCenter.log("[更新] 用户未授权，回退使用下载目录：\(downloads.path)", level: .warning)
+                return downloads
+            }
+            throw error
+        }
     }
 
     @MainActor

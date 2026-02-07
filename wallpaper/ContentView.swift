@@ -1,4 +1,5 @@
 import AppKit // 使用 NSImage
+import AppKit // NSApp
 import SwiftUI // SwiftUI 界面
 import SwiftData // SwiftData 数据
 import UniformTypeIdentifiers // 文件类型识别
@@ -425,12 +426,16 @@ struct ContentView: View {
         switch result {
         case .success(let fileURL):
             UpdateService.revealInFinder(fileURL)
-            updateAlert = UpdateAlertItem(
-                title: "下载完成",
-                message: "已下载更新包，可在 Finder 中手动替换应用。",
-                primaryButton: "好",
-                release: nil
-            )
+            if NSApp.isActive {
+                updateAlert = UpdateAlertItem(
+                    title: "下载完成",
+                    message: "已下载更新包，可在 Finder 中手动替换应用。\n目录：\(fileURL.deletingLastPathComponent().path)",
+                    primaryButton: "好",
+                    release: nil
+                )
+            } else {
+                LogCenter.log("[更新] 下载完成，应用未前台显示，跳过弹窗提示")
+            }
         case .failure(let error):
             updateAlert = UpdateAlertItem(
                 title: "下载失败",
