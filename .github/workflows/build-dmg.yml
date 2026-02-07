@@ -70,14 +70,23 @@ jobs:
             ln -s /Applications "$MOUNT_POINT/Applications" || true
           fi
 
-           # Create a clickable shell command to fix quarantine attributes
-          FIX_CMD="$MOUNT_POINT/FixCannotOpen.command"
-          cat > "$FIX_CMD" <<'EOF'
-          #!/bin/bash
+          # Create a README with installation instructions instead of executable script (avoids Gatekeeper prompts)
+          cat > "$MOUNT_POINT/README.txt" <<'README'
+          安装说明
+
+          1) 将 "wallpaper.app" 拖到 /Applications 文件夹完成安装。
+
+          2) 如果应用无法打开，请在“终端”中运行下面的命令以清除 macOS 隔离（quarantine）标记：
+
           xattr -cr '/Applications/wallpaper.app'
-          osascript -e 'display notification "修复已执行" with title "wallpaper"'
-          EOF
-          chmod +x "$FIX_CMD"
+
+          注意：如果出现权限问题，请在终端中使用 sudo：
+
+          sudo xattr -cr '/Applications/wallpaper.app'
+
+          3) 开机自启需要系统批准：系统设置 → 登录项中允许本应用。
+
+          README
 
           # Detach and convert to compressed DMG
           FINAL_DMG="${APP_NAME}-${APP_VERSION}.dmg"
