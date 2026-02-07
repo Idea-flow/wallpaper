@@ -5,6 +5,7 @@ struct SettingsView: View {
     @AppStorage("autoLaunchEnabled") private var autoLaunchEnabled = false // 开机自启
     @AppStorage("menuBarEnabled") private var menuBarEnabled = false // 菜单栏
     @AppStorage("reduceVideoPower") private var reduceVideoPower = true // 低功耗
+    @AppStorage("pauseVideoWhenLowPower") private var pauseVideoWhenLowPower = true // 低电/遮挡暂停
     @AppStorage("themeColorHex") private var themeColorHex = ThemeColor.defaultHex // 主题色
     @AppStorage("themeMode") private var themeMode = "system" // 主题模式
     @AppStorage("sidebarSelectionStyle") private var sidebarSelectionStyle = "custom" // 侧栏选中样式
@@ -35,6 +36,10 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         capsuleToggle(title: "低功耗模式", isOn: $reduceVideoPower)
                         Text("启用后将减少视频壁纸的帧率以节省电量。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        capsuleToggle(title: "低电/遮挡时暂停视频，保留静帧", isOn: $pauseVideoWhenLowPower)
+                        Text("默认开启，低电或壁纸不可见时自动暂停，降低解码与 GPU 占用。")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         HStack {

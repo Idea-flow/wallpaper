@@ -9,7 +9,8 @@ final class VideoWallpaperService {
     // Entry：记录每个屏幕的窗口与播放器
     struct Entry {
         let window: NSWindow // 承载视频的窗口
-        let player: AVPlayer // 视频播放器
+        let player: AVQueuePlayer // 视频播放器
+        let looper: AVPlayerLooper // 无缝循环器
         let endObserver: Any // 循环播放监听
     }
 
@@ -19,9 +20,17 @@ final class VideoWallpaperService {
     private var currentFitMode: FitMode = .fill // 当前适配模式
     private var currentScreenID: String? // 当前目标屏幕
     private var screenObserver: Any? // 屏幕变化监听
+    private var powerObserver: Any? // 低电模式监听
+    private var visibilityTimer: DispatchSourceTimer? // 可见性轮询
+    private var pausedForPower = false // 是否因省电暂停
     private var isReapplying = false // 防止重复重建
 
-    private init() {} // 禁止外部初始化
+    private init() { // 禁止外部初始化
+        UserDefaults.standard.register(defaults: [ // 注册默认值，确保服务早期也能读到
+            "pauseVideoWhenLowPower": true,
+            "reduceVideoPower": true
+        ])
+    }
 
     // applyVideo：将视频应用为桌面壁纸
     func applyVideo(item: MediaItem, fitMode: FitMode, screenID: String?) throws {
@@ -43,6 +52,8 @@ final class VideoWallpaperService {
         currentFitMode = fitMode // 保存当前模式
         currentScreenID = screenID // 保存当前目标
         startScreenObserver() // 监听屏幕变化
+        startPowerObserver() // 监听低电模式
+        startVisibilityTimer() // 定期检测可见性
 
         for screen in targetScreens { // 遍历目标屏幕
             let gravity = videoGravity(for: fitMode) // 计算视频适配方式
@@ -50,7 +61,9 @@ final class VideoWallpaperService {
 
             let asset = AVURLAsset(url: token.url) // 创建视频资源
             let playerItem = AVPlayerItem(asset: asset) // 创建播放条目
-            let player = AVPlayer(playerItem: playerItem) // 创建播放器
+            configurePerformanceHints(item: playerItem, asset: asset, screen: screen) // 性能优化：限帧/限码率/限分辨率
+            let player = AVQueuePlayer() // 创建队列播放器
+            let looper = AVPlayerLooper(player: player, templateItem: playerItem) // 无缝循环
             player.actionAtItemEnd = .none // 播放结束不自动停止
 
             let view = NSView(frame: NSRect(origin: .zero, size: screen.frame.size)) // 创建容器视图
@@ -67,17 +80,16 @@ final class VideoWallpaperService {
             player.play() // 播放视频
             LogCenter.log("[视频壁纸] 视图大小：\(view.bounds) layer=\(layer.frame)") // 日志
 
-            let endObserver = NotificationCenter.default.addObserver( // 监听播放结束
+            let endObserver = NotificationCenter.default.addObserver( // 保留日志用途
                 forName: .AVPlayerItemDidPlayToEndTime, // 播放结束通知
                 object: playerItem, // 仅监听当前条目
                 queue: .main // 主线程
             ) { _ in
-                player.seek(to: .zero) // 回到起点
-                player.play() // 继续播放
+                LogCenter.log("[视频壁纸] 视频到达末尾（Looper 处理中）") // 仅日志，不再手动 seek
             }
 
             let key = ObjectIdentifier(screen) // 生成屏幕标识
-            entries[key] = Entry(window: window, player: player, endObserver: endObserver) // 保存条目
+            entries[key] = Entry(window: window, player: player, looper: looper, endObserver: endObserver) // 保存条目
             LogCenter.log("[视频壁纸] 已启动屏幕：\(screen.localizedName) | id=\(screenIdentifier(screen))") // 关键步骤日志
         }
     }
@@ -95,6 +107,9 @@ final class VideoWallpaperService {
         entries.removeAll() // 清空条目
         accessToken?.stopAccess() // 释放安全访问
         accessToken = nil // 清空访问令牌
+        stopPowerObserver() // 停止低电监听
+        stopVisibilityTimer() // 停止可见性轮询
+        pausedForPower = false // 重置省电状态
     }
 
     // makeWindow：创建桌面层窗口
@@ -170,6 +185,84 @@ final class VideoWallpaperService {
             try applyVideo(item: item, fitMode: currentFitMode, screenID: currentScreenID) // 重建
         } catch {
             LogCenter.log("[视频壁纸] 重建失败：\(error.localizedDescription)", level: .error) // 日志
+        }
+    }
+
+    // configurePerformanceHints：统一限帧、限码率、限分辨率，降低 GPU/能耗
+    private func configurePerformanceHints(item: AVPlayerItem, asset: AVURLAsset, screen: NSScreen) { // 性能优化
+        let lowPower = UserDefaults.standard.bool(forKey: "reduceVideoPower") // 用户开关
+        // 通过视频合成应用 track transform，避免额外旋转缩放（macOS 14 上 AVPlayerItem 无该属性）
+        item.preferredForwardBufferDuration = 1 // 减少预缓冲，降低内存/能耗
+        item.preferredPeakBitRate = lowPower ? 8_000_000 : 16_000_000 // 低功耗压到 8Mbps，关闭则放宽
+        item.preferredMaximumResolution = screen.frame.size // 不超过目标屏幕，避免超采样
+
+        if let videoTrack = asset.tracks(withMediaType: .video).first { // 仅当有视频轨
+            if lowPower { // 仅在低功耗模式下限帧
+                let composition = AVMutableVideoComposition(propertiesOf: asset) // 基于源生成合成
+                composition.frameDuration = CMTime(value: 1, timescale: 24) // 24fps：较平滑且低功耗
+                composition.renderSize = videoTrack.naturalSize // 保持原始渲染尺寸
+                item.videoComposition = composition // 应用合成
+            }
+
+            let dataRate = videoTrack.estimatedDataRate // 估算码率
+            if lowPower && dataRate > 12_000_000 { // 高码率素材时提示
+                LogCenter.log("[视频壁纸] 高码率素材(\(Int(dataRate))bps)，已限码率/分辨率/帧率以降低 GPU 负载", level: .warning) // 记录原因
+            }
+        }
+    }
+
+    // startPowerObserver：监听低电模式
+    private func startPowerObserver() { // 低电监听
+        guard powerObserver == nil else { return } // 避免重复
+        powerObserver = NotificationCenter.default.addObserver( // 注册
+            forName: .NSProcessInfoPowerStateDidChange, // 低电模式变化
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.updatePlaybackForPowerState() // 根据省电状态调整
+        }
+    }
+
+    private func stopPowerObserver() { // 关闭低电监听
+        if let observer = powerObserver {
+            NotificationCenter.default.removeObserver(observer)
+            powerObserver = nil
+        }
+    }
+
+    // startVisibilityTimer：定期检测可见性，用于静帧省电
+    private func startVisibilityTimer() { // 可见性轮询
+        stopVisibilityTimer() // 确保仅一个定时器
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.main) // 主队列定时器
+        timer.schedule(deadline: .now() + 1, repeating: 1) // 每秒检测
+        timer.setEventHandler { [weak self] in
+            self?.updatePlaybackForPowerState() // 根据可见性/省电状态调整
+        }
+        timer.resume()
+        visibilityTimer = timer
+    }
+
+    private func stopVisibilityTimer() { // 关闭定时器
+        visibilityTimer?.cancel()
+        visibilityTimer = nil
+    }
+
+    // updatePlaybackForPowerState：低功耗或不可见时暂停，恢复时继续
+    private func updatePlaybackForPowerState() { // 状态刷新
+        guard UserDefaults.standard.bool(forKey: "pauseVideoWhenLowPower") else { return } // 用户可配置
+
+        let isLowPower = ProcessInfo.processInfo.isLowPowerModeEnabled // 系统低电
+        let anyVisible = entries.values.contains { $0.window.occlusionState.contains(.visible) } // 是否有屏幕可见
+        let shouldPause = isLowPower || !anyVisible // 条件：低电或不可见
+
+        if shouldPause && !pausedForPower { // 需要暂停
+            pausedForPower = true
+            entries.values.forEach { $0.player.pause() } // 暂停但保留当前帧作为静态壁纸
+            LogCenter.log("[视频壁纸] 因低电/不可见暂停播放，保留静帧节能") // 说明
+        } else if !shouldPause && pausedForPower { // 恢复
+            pausedForPower = false
+            entries.values.forEach { $0.player.play() }
+            LogCenter.log("[视频壁纸] 退出低电/恢复可见，继续播放视频壁纸") // 说明
         }
     }
 }
