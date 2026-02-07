@@ -177,3 +177,20 @@ modern Chinese aesthetic, xianxia (immortal) vibe, minimal composition, misty mo
         1,bing壁纸构建的最终完整请求,日志打印出来
         2.Bing壁纸,跟日志,设置菜单一样,只有左边菜单栏,和内容栏
         3.内容栏中的卡片,右键支持预览,预览新开一个窗口展示详细信息, 图片需要完美的展示出来
+
+        [$swiftui-expert-skill](/Users/wangpenglong/projects/swift/wallpaper/.agents/skills/swiftui-expert-skill/SKILL.md)     if usesTwoColumnLayout { // 日志/设置双栏
+        NavigationSplitView { // 双栏布局
+        sidebarList // 侧栏
+        } detail: { // 右侧作为内容
+        contentColumn // 内容列
+        }
+        } else { // 其余模块三栏
+        NavigationSplitView(columnVisibility: $columnVisibility) { // 三栏布局
+        sidebarList // 侧栏
+        } content: { // 中间栏内容
+        contentColumn // 内容列
+        } detail: { // 右侧详情
+        detailColumn // 详情列
+        }
+        }
+        根据这个两栏布局, 三栏布局的方式 让Bing壁纸这个菜单变成两栏布局,Bing壁纸的详情页改成右键有个预览,打开窗口预览,模块化页面,并把现有的布局方式给删除

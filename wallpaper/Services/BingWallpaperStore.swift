@@ -7,7 +7,6 @@ import SwiftData // SwiftData
 @Observable
 final class BingWallpaperStore { // 状态类
     var items: [BingWallpaperItem] = [] // 壁纸列表
-    var selectedID: String? // 选中项 ID
     var market: String = "zh-CN" // 默认市场
     var dayIndex: Int = 0 // 0=今天
     var count: Int = 8 // 默认数量
@@ -28,11 +27,6 @@ final class BingWallpaperStore { // 状态类
         BingMarketOption(id: "it-IT", name: "意大利") // 意大利
     ]
 
-    var selectedItem: BingWallpaperItem? { // 当前选中
-        guard let selectedID else { return nil } // 无选择
-        return items.first { $0.id == selectedID } // 匹配
-    }
-
     var dayLabel: String { // 日期标签
         switch dayIndex { // 判断索引
         case 0: return "今天" // 今天
@@ -51,11 +45,6 @@ final class BingWallpaperStore { // 状态类
         do { // 捕获错误
             let data = try await BingWallpaperService.fetchWallpapers(market: market, index: dayIndex, count: count) // 拉取
             items = data // 赋值
-            if let first = items.first { // 有数据
-                if selectedID == nil || items.first(where: { $0.id == selectedID }) == nil { // 需要重置
-                    selectedID = first.id // 默认选中第一项
-                }
-            }
             lastUpdated = Date() // 更新时间
             LogCenter.log("[Bing] 拉取成功：\(items.count) 张") // 日志
         } catch { // 失败处理

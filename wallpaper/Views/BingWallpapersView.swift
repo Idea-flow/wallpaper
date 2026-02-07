@@ -120,10 +120,14 @@ struct BingWallpapersView: View { // Bing 列表视图
                 ForEach(store.items) { item in // 遍历
                     BingWallpaperCard( // 卡片
                         item: item, // 数据
-                        isSelected: store.selectedID == item.id, // 选中态
                         isDownloading: store.downloadingIDs.contains(item.id) // 下载态
-                    ) { // 点击选择
-                        store.selectedID = item.id // 更新选中
+                    ) { // 左键预览
+                        BingPreviewWindowManager.shared.show( // 打开预览窗口
+                            item: item, // 壁纸数据
+                            store: store, // 状态
+                            modelContext: modelContext // 数据上下文
+                        )
+                        LogCenter.log("[Bing] 打开预览窗口：\(item.displayTitle)") // 日志
                     }
                     .contextMenu { // 右键菜单
                         Button("预览") { // 预览
@@ -155,13 +159,12 @@ struct BingWallpapersView: View { // Bing 列表视图
 // BingWallpaperCard：壁纸卡片
 struct BingWallpaperCard: View { // 卡片视图
     let item: BingWallpaperItem // 数据
-    let isSelected: Bool // 选中态
     let isDownloading: Bool // 下载态
-    let onSelect: () -> Void // 点击
+    let onPreview: () -> Void // 点击
 
     var body: some View { // 主体
         Button { // 点击
-            onSelect() // 触发选择
+            onPreview() // 触发预览
         } label: {
             VStack(alignment: .leading, spacing: 8) { // 垂直布局
                 ZStack(alignment: .topTrailing) { // 预览 + 状态
@@ -217,6 +220,6 @@ struct BingWallpaperCard: View { // 卡片视图
 
     private var backgroundStyle: some View { // 背景样式
         RoundedRectangle(cornerRadius: 12) // 圆角
-            .fill(isSelected ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.08)) // 选中高亮
+            .fill(Color.secondary.opacity(0.08)) // 常规背景
     }
 }

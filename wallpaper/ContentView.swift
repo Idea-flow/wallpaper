@@ -109,7 +109,7 @@ struct ContentView: View {
     }
 
     private var usesTwoColumnLayout: Bool { // 是否使用双栏
-        sidebarSelection == .settings || sidebarSelection == .logs
+        sidebarSelection == .settings || sidebarSelection == .logs || sidebarSelection == .bing
     }
 
     private var sidebarList: some View { // 侧栏列表
@@ -190,7 +190,7 @@ struct ContentView: View {
 
     private func updateColumnVisibility(for section: SidebarSection) { // 更新列显示
         switch section { // 根据模块
-        case .settings, .logs:
+        case .settings, .logs, .bing:
             columnVisibility = .doubleColumn // 显示侧栏 + 中间列
         default:
             columnVisibility = .all // 显示三栏
@@ -215,7 +215,6 @@ struct ContentView: View {
             .navigationSplitViewColumnWidth(min: 300, ideal: 560, max: 760)
         case .bing:
             BingWallpapersView(store: bingStore) // Bing 壁纸
-                .navigationSplitViewColumnWidth(min: 300, ideal: 560, max: 760)
         case .albums:
             AlbumsView(selectedAlbumID: $selectedAlbumID) // 相册列表
                 .navigationSplitViewColumnWidth(min: 300, ideal: 560, max: 760)
@@ -258,7 +257,7 @@ struct ContentView: View {
                     ContentUnavailableView("请选择相册", systemImage: "rectangle.stack") // 无选择占位
                 }
             case .bing:
-                BingWallpaperDetailView(store: bingStore) // Bing 壁纸详情
+                EmptyView() // Bing 壁纸使用双栏布局
             case .rules:
                 if let rule = selectedRule { // 有选中规则
                     RuleDetailView(rule: rule, albums: albums) // 规则详情
