@@ -56,19 +56,22 @@ struct ContentView: View {
     @State private var showFavoritesOnly = false // 仅收藏
 
     var body: some View { // 主界面
-        NavigationSplitView(columnVisibility: $columnVisibility) { // 三栏布局
-            List(SidebarSection.allCases, selection: $sidebarSelection) { section in // 侧栏列表
-                Label(section.rawValue, systemImage: section.systemImage) // 侧栏行
-                    .tag(section) // 绑定选择
-                    .contentShape(Rectangle()) // 扩大可点击区域
+        Group {
+            if usesTwoColumnLayout { // 日志/设置双栏
+                NavigationSplitView { // 双栏布局
+                    sidebarList // 侧栏
+                } detail: { // 右侧作为内容
+                    contentColumn // 内容列
+                }
+            } else { // 其余模块三栏
+                NavigationSplitView(columnVisibility: $columnVisibility) { // 三栏布局
+                    sidebarList // 侧栏
+                } content: { // 中间栏内容
+                    contentColumn // 内容列
+                } detail: { // 右侧详情
+                    detailColumn // 详情列
+                }
             }
-            .listStyle(.sidebar) // 侧栏样式
-            .navigationSplitViewColumnWidth(min: 180, ideal: 220) // 侧栏宽度
-            .tint(ThemeColor.color(from: themeColorHex)) // 选中颜色跟随主题色
-        } content: { // 中间栏内容
-            contentColumn // 内容列
-        } detail: { // 右侧详情
-            detailColumn // 详情列
         }
         .onAppear { // 初始化列显示
             updateColumnVisibility(for: sidebarSelection) // 更新列显示
@@ -93,10 +96,31 @@ struct ContentView: View {
         }
     }
 
+    private var usesTwoColumnLayout: Bool { // 是否使用双栏
+        sidebarSelection == .settings || sidebarSelection == .logs
+    }
+
+    private var sidebarList: some View { // 侧栏列表
+        List(SidebarSection.allCases, selection: $sidebarSelection) { section in // 侧栏列表
+            Label(section.rawValue, systemImage: section.systemImage) // 侧栏行
+                .tag(section) // 绑定选择
+                .contentShape(Rectangle()) // 扩大可点击区域
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(sidebarSelection == section ? ThemeColor.color(from: themeColorHex).opacity(0.22) : Color.clear)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                )
+        }
+        .listStyle(.sidebar) // 侧栏样式
+        .navigationSplitViewColumnWidth(min: 180, ideal: 220) // 侧栏宽度
+        .tint(ThemeColor.color(from: themeColorHex)) // 选中颜色跟随主题色
+    }
+
     private func updateColumnVisibility(for section: SidebarSection) { // 更新列显示
         switch section { // 根据模块
-        case .settings:
-            columnVisibility = .detailOnly // 显示侧栏 + 中间列
+        case .settings, .logs:
+            columnVisibility = .doubleColumn // 显示侧栏 + 中间列
         default:
             columnVisibility = .all // 显示三栏
         }
