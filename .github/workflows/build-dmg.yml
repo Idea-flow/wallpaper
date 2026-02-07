@@ -87,33 +87,20 @@ jobs:
 
           echo "Created ${FINAL_DMG}"
 
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release and upload asset
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: "v${{ env.APP_VERSION }}"
-          release_name: "${{ env.APP_NAME }} ${{ env.APP_VERSION }}"
+          name: "${{ env.APP_NAME }} ${{ env.APP_VERSION }}"
           body: "Automated release for ${{ env.APP_NAME }} v${{ env.APP_VERSION }} (artifact ${{ env.APP_NAME }}-${{ env.APP_VERSION }}.dmg)"
-          draft: false
-          prerelease: false
-
-      - name: Upload DMG to Release
-        id: upload_release_asset
-        uses: actions/upload-release-asset@v1
+          files: ${{ env.APP_NAME }}-${{ env.APP_VERSION }}.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ env.APP_NAME }}-${{ env.APP_VERSION }}.dmg
-          asset_name: ${{ env.APP_NAME }}-${{ env.APP_VERSION }}.dmg
-          asset_content_type: application/octet-stream
 
       - name: Print Release asset download URL
         run: |
-          echo "Release 页面: ${{ steps.create_release.outputs.html_url }}"
-          echo "Release 标签: ${{ steps.create_release.outputs.tag_name }}"
-          echo "资产浏览下载 URL: ${{ steps.upload_release_asset.outputs.browser_download_url }}"
+          echo "Release 页面: https://github.com/${{ github.repository }}/releases/tag/v${{ env.APP_VERSION }}"
+          echo "Release 标签: v${{ env.APP_VERSION }}"
+          echo "资产浏览下载 URL: https://github.com/${{ github.repository }}/releases/download/v${{ env.APP_VERSION }}/${{ env.APP_NAME }}-${{ env.APP_VERSION }}.dmg"
           echo "在浏览器中打开上述 URL 可直接下载；若使用 curl，可运行："
-          echo "curl -L -o ${{ env.APP_NAME }}-${{ env.APP_VERSION }}.dmg \"${{ steps.upload_release_asset.outputs.browser_download_url }}\""
+          echo "curl -L -o ${{ env.APP_NAME }}-${{ env.APP_VERSION }}.dmg \"https://github.com/${{ github.repository }}/releases/download/v${{ env.APP_VERSION }}/${{ env.APP_NAME }}-${{ env.APP_VERSION }}.dmg\""
