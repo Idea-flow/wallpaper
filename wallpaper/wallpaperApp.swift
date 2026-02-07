@@ -30,7 +30,7 @@ struct wallpaperApp: App {
     }()
 
     var body: some Scene { // 主场景
-        WindowGroup { // 窗口组
+        Window("wallpaper", id: "main") { // 主窗口（单实例）
             ContentView() // 主界面
                 .tint(ThemeColor.color(from: themeColorHex)) // 应用主题色
                 .preferredColorScheme(preferredScheme) // 应用主题模式
@@ -48,6 +48,9 @@ struct wallpaperApp: App {
                 }
         }
         .modelContainer(sharedModelContainer) // 注入数据容器
+        .defaultSize(width: 1200, height: 760) // 默认大小
+        .windowResizability(.contentSize) // 可调整
+        .restorationBehavior(.disabled) // 禁止恢复重复窗口
 
         MenuBarExtra("wallpaper", image: "MenuBarIcon", isInserted: $menuBarEnabled) { // 菜单栏
             MenuBarContentView() // 菜单栏内容
@@ -81,10 +84,11 @@ struct wallpaperApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var observed = Set<ObjectIdentifier>()
+    private var rememberedMainCloseAction: MainCloseAction?
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         WindowManager.showMainWindow()
-        return true
+        return false
     }
 
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
@@ -124,6 +128,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if sender.title == WindowManager.diagnosticsTitle {
             return true
         }
+        if let action = rememberedMainCloseAction {
+            return applyMainCloseAction(action, window: sender)
+        }
         let alert = NSAlert()
         alert.messageText = "关闭窗口？"
         alert.informativeText = "你可以关闭窗口，或隐藏到菜单栏保持后台运行。"
@@ -133,12 +140,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let response = alert.runModal()
         switch response {
         case .alertFirstButtonReturn:
-            sender.orderOut(nil)
-            return false
+            rememberedMainCloseAction = .hide
+            return applyMainCloseAction(.hide, window: sender)
         case .alertSecondButtonReturn:
-            return true
+            rememberedMainCloseAction = .close
+            return applyMainCloseAction(.close, window: sender)
         default:
             return false
         }
     }
+
+    private func applyMainCloseAction(_ action: MainCloseAction, window: NSWindow) -> Bool {
+        switch action {
+        case .hide:
+            window.orderOut(nil)
+            return false
+        case .close:
+            return true
+        }
+    }
+}
+
+private enum MainCloseAction {
+    case hide
+    case close
 }
