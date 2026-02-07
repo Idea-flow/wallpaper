@@ -172,6 +172,8 @@ struct ContentView: View {
                 showFavoritesOnly: $showFavoritesOnly // 收藏绑定
             ) { // 导入回调
                 showingImporter = true // 打开导入
+            } onApply: { item in
+                applyWallpaper(for: item, fitMode: selectedFitMode, screenID: selectedScreenID)
             }
             .navigationSplitViewColumnWidth(min: 300, ideal: 560, max: 760)
         case .albums:

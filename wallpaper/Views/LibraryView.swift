@@ -14,6 +14,7 @@ struct LibraryView: View {
     @Binding var showFavoritesOnly: Bool // 仅收藏
 
     let onImport: () -> Void // 导入回调
+    let onApply: (MediaItem) -> Void // 设置壁纸回调
     @State private var showingTagEditor = false // 是否显示标签弹窗
     @State private var tagInput = "" // 标签输入
     @State private var viewMode: ViewMode = .grid // 视图模式
@@ -43,6 +44,9 @@ struct LibraryView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .contextMenu {
+                                    Button("设为壁纸") {
+                                        onApply(item)
+                                    }
                                     Button("标记收藏") {
                                         item.isFavorite.toggle()
                                         try? modelContext.save()
@@ -56,6 +60,7 @@ struct LibraryView: View {
                         }
                         .padding(16)
                     }
+                    .scrollIndicators(.hidden)
                     .frame(width: geometry.size.width, height: geometry.size.height)
                 }
                 .background(Color.clear) // 确保背景透明以透出 Liquid Glass 效果
@@ -69,6 +74,7 @@ struct LibraryView: View {
                 }
                 .scrollContentBackground(.hidden)
                 .background(Color.clear)
+                .scrollIndicators(.hidden)
             }
         }
         .animation(Glass.animation, value: selectionIDs)

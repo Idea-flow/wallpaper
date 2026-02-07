@@ -240,6 +240,7 @@ struct MediaDetailView: View {
 
     private var infoItems: [InfoItem] { // 图片/视频展示不同内容
         var items: [InfoItem] = []
+        items.append(.init(title: "路径", value: item.fileURL.path))
         if let resolutionText {
             items.append(.init(title: "分辨率", value: resolutionText))
         }
@@ -364,46 +365,32 @@ struct MediaDetailView: View {
     }
 
     private var previewAspectRatio: CGFloat? { // 预览比例
-        let targetScreen: NSScreen?
-        if selectedScreenID == "all" {
-            targetScreen = NSScreen.main
-        } else {
-            targetScreen = ScreenHelper.screenByID(selectedScreenID)
+        if let mediaAspectRatio { // 优先用素材比例
+            return mediaAspectRatio // 返回素材比例
         }
-        guard let screen = targetScreen else { return nil }
-        let size = screen.frame.size
-        guard size.height > 0 else { return nil }
-        return size.width / size.height
+        let targetScreen: NSScreen? // 兜底用屏幕比例
+        if selectedScreenID == "all" { // 全部屏幕
+            targetScreen = NSScreen.main // 主屏幕
+        } else { // 指定屏幕
+            targetScreen = ScreenHelper.screenByID(selectedScreenID) // 查找屏幕
+        }
+        guard let screen = targetScreen else { return nil } // 无屏幕
+        let size = screen.frame.size // 屏幕尺寸
+        guard size.height > 0 else { return nil } // 无效尺寸
+        return size.width / size.height // 屏幕比例
+    }
+
+    private var mediaAspectRatio: CGFloat? { // 素材比例
+        guard let width = item.width, let height = item.height, height > 0 else { return nil } // 无比例
+        return width / height // 返回素材比例
     }
 
     @ViewBuilder
     private func imagePreview(_ image: NSImage) -> some View { // 图片预览
-        switch fitMode { // 根据模式显示
-        case .fill:
-            Image(nsImage: image) // 图片
-                .resizable() // 可拉伸
-                .scaledToFill() // 填充
-                .frame(maxWidth: .infinity, maxHeight: .infinity) // 填满
-                .clipped() // 裁剪
-        case .fit:
-            Image(nsImage: image) // 图片
-                .resizable() // 可拉伸
-                .scaledToFit() // 适应
-                .frame(maxWidth: .infinity, maxHeight: .infinity) // 填满
-        case .stretch:
-            Image(nsImage: image) // 图片
-                .resizable() // 可拉伸
-                .frame(maxWidth: .infinity, maxHeight: .infinity) // 填满
-                .clipped() // 裁剪
-        case .center:
-            Image(nsImage: image) // 图片
-                .resizable() // 可拉伸
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center) // 居中
-                .clipped() // 裁剪
-        case .tile:
-            TiledImageView(image: image) // 原生平铺
-                .clipped() // 裁剪溢出
-        }
+        Image(nsImage: image) // 图片
+            .resizable() // 可拉伸
+            .scaledToFit() // 统一预览布局（不随模式变化）
+            .frame(maxWidth: .infinity, maxHeight: .infinity) // 填满
     }
 
     private func isPermissionIssue(_ reason: String) -> Bool { // 判断权限问题

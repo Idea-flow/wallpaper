@@ -47,7 +47,9 @@ jobs:
           # Prepare a temporary read-write image
           DMG_TMP="${APP_NAME}-temp.dmg"
           SIZE="100m"
-          hdiutil create -size "$SIZE" -fs HFS+ -volname "$APP_NAME" -ov -format UDRW "$DMG_TMP"
+          EMPTY_DIR=$(mktemp -d)
+          hdiutil create -srcfolder "$EMPTY_DIR" -size "$SIZE" -fs HFS+ -volname "$APP_NAME" -ov -format UDRW "$DMG_TMP"
+          rm -rf "$EMPTY_DIR"
 
           # Attach the image and get mount point
           MOUNT_POINT=$(hdiutil attach -readwrite -noverify -noautoopen "$DMG_TMP" | egrep '/Volumes/' | sed -E 's/.*\t(\/Volumes\/.*)/\1/' | head -n1)
