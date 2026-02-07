@@ -22,7 +22,7 @@ final class RuleScheduler {
             }
         }
         RunLoop.main.add(timer!, forMode: .common) // 加入运行循环
-        NSLog("[规则] 调度器已启动") // 日志
+        LogCenter.log("[规则] 调度器已启动") // 日志
     }
 
     // stop：停止调度
@@ -97,15 +97,15 @@ final class RuleScheduler {
                     let screen = targetScreen == nil ? nil : ScreenHelper.screenByID(targetScreen!)
                     try WallpaperService.applyImage(url: url, to: screen, fitMode: .fill)
                 }
-                NSLog("[规则] 已应用图片壁纸：\(item.fileURL.lastPathComponent)")
+                LogCenter.log("[规则] 已应用图片壁纸：\(item.fileURL.lastPathComponent)")
             } else if item.type == .video {
                 try VideoWallpaperService.shared.applyVideo(item: item, fitMode: .fill, screenID: targetScreen)
-                NSLog("[规则] 已应用视频壁纸：\(item.fileURL.lastPathComponent)")
+                LogCenter.log("[规则] 已应用视频壁纸：\(item.fileURL.lastPathComponent)")
             }
             item.lastUsedAt = Date() // 更新使用时间
             try? context.save() // 保存
         } catch {
-            NSLog("[规则] 应用失败：\(error.localizedDescription)")
+            LogCenter.log("[规则] 应用失败：\(error.localizedDescription)", level: .error)
         }
     }
 

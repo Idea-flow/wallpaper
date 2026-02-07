@@ -25,17 +25,17 @@ final class VideoWallpaperService {
 
     // applyVideo：将视频应用为桌面壁纸
     func applyVideo(item: MediaItem, fitMode: FitMode, screenID: String?) throws {
-        print("[视频壁纸] 启动视频壁纸：\(item.fileURL.lastPathComponent)") // 关键步骤日志
-        print("[视频壁纸] 目标屏幕ID：\(screenID ?? "all")") // 关键步骤日志
+        LogCenter.log("[视频壁纸] 启动视频壁纸：\(item.fileURL.lastPathComponent)") // 关键步骤日志
+        LogCenter.log("[视频壁纸] 目标屏幕ID：\(screenID ?? "all")") // 关键步骤日志
 
         let token = try MediaAccessService.beginAccess(for: item) // 开始安全访问
         let screens = NSScreen.screens // 获取所有屏幕
-        print("[视频壁纸] 当前屏幕数量：\(screens.count)") // 关键步骤日志
+        LogCenter.log("[视频壁纸] 当前屏幕数量：\(screens.count)") // 关键步骤日志
         for screen in screens { // 打印屏幕详情
-            print("[视频壁纸] 屏幕：\(screen.localizedName) | id=\(screenIdentifier(screen)) | frame=\(screen.frame)") // 关键步骤日志
+            LogCenter.log("[视频壁纸] 屏幕：\(screen.localizedName) | id=\(screenIdentifier(screen)) | frame=\(screen.frame)") // 关键步骤日志
         }
         let targetScreens = screenID == nil ? screens : screens.filter { screenIdentifier($0) == screenID } // 目标屏幕
-        print("[视频壁纸] 目标屏幕数量：\(targetScreens.count)") // 关键步骤日志
+        LogCenter.log("[视频壁纸] 目标屏幕数量：\(targetScreens.count)") // 关键步骤日志
 
         stopAll() // 启动前清理旧的播放
         accessToken = token // 保存访问令牌
@@ -65,7 +65,7 @@ final class VideoWallpaperService {
             window.contentView = view // 设置窗口内容
             window.orderBack(nil) // 放到桌面层
             player.play() // 播放视频
-            NSLog("[视频壁纸] 视图大小：\(view.bounds) layer=\(layer.frame)") // 日志
+            LogCenter.log("[视频壁纸] 视图大小：\(view.bounds) layer=\(layer.frame)") // 日志
 
             let endObserver = NotificationCenter.default.addObserver( // 监听播放结束
                 forName: .AVPlayerItemDidPlayToEndTime, // 播放结束通知
@@ -78,14 +78,14 @@ final class VideoWallpaperService {
 
             let key = ObjectIdentifier(screen) // 生成屏幕标识
             entries[key] = Entry(window: window, player: player, endObserver: endObserver) // 保存条目
-            print("[视频壁纸] 已启动屏幕：\(screen.localizedName) | id=\(screenIdentifier(screen))") // 关键步骤日志
+            LogCenter.log("[视频壁纸] 已启动屏幕：\(screen.localizedName) | id=\(screenIdentifier(screen))") // 关键步骤日志
         }
     }
 
     // stopAll：停止所有视频壁纸
     func stopAll() {
         if !entries.isEmpty { // 仅在有播放时打印
-            print("[视频壁纸] 停止所有视频壁纸") // 关键步骤日志
+        LogCenter.log("[视频壁纸] 停止所有视频壁纸") // 关键步骤日志
         }
         for entry in entries.values { // 遍历条目
             NotificationCenter.default.removeObserver(entry.endObserver) // 移除监听
@@ -119,7 +119,7 @@ final class VideoWallpaperService {
         window.titlebarAppearsTransparent = true // 标题栏透明
         window.isReleasedWhenClosed = false // 避免被系统释放
         window.setFrame(screen.frame, display: true) // 强制设置到屏幕坐标
-        NSLog("[视频壁纸] 窗口创建：screen=\(screen.localizedName) frame=\(screen.frame) content=\(contentRect)") // 日志
+        LogCenter.log("[视频壁纸] 窗口创建：screen=\(screen.localizedName) frame=\(screen.frame) content=\(contentRect)") // 日志
         return window // 返回窗口
     }
 
@@ -165,11 +165,11 @@ final class VideoWallpaperService {
         guard let item = currentItem else { return } // 没有视频
         isReapplying = true // 标记
         defer { isReapplying = false } // 结束恢复
-        NSLog("[视频壁纸] 屏幕变化，准备重建视频壁纸") // 日志
+        LogCenter.log("[视频壁纸] 屏幕变化，准备重建视频壁纸") // 日志
         do {
             try applyVideo(item: item, fitMode: currentFitMode, screenID: currentScreenID) // 重建
         } catch {
-            NSLog("[视频壁纸] 重建失败：\(error.localizedDescription)") // 日志
+            LogCenter.log("[视频壁纸] 重建失败：\(error.localizedDescription)", level: .error) // 日志
         }
     }
 }

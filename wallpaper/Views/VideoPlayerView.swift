@@ -63,7 +63,7 @@ struct VideoPlayerView: NSViewRepresentable {
         context.coordinator.player.isMuted = isMuted // 更新静音状态
 
         if context.coordinator.currentItemID != item.id { // 切换了视频
-            NSLog("[视频预览] 检测到视频切换，重新加载播放器") // 日志
+            LogCenter.log("[视频预览] 检测到视频切换，重新加载播放器") // 日志
             context.coordinator.accessToken.stopAccess() // 停止旧访问
             do {
                 let token = try MediaAccessService.beginAccess(for: item) // 重新获取访问
@@ -77,7 +77,7 @@ struct VideoPlayerView: NSViewRepresentable {
                 layer.player = player // 替换图层播放器
                 player.play() // 播放
             } catch {
-                NSLog("[视频预览] 重新加载失败：\(error.localizedDescription)") // 日志
+                LogCenter.log("[视频预览] 重新加载失败：\(error.localizedDescription)", level: .error) // 日志
             }
         }
     }

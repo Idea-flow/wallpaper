@@ -12,7 +12,7 @@ struct WallpaperService {
 
     // applyImage：设置图片壁纸
     static func applyImage(url: URL, to screen: NSScreen?, fitMode: FitMode) throws {
-        print("[壁纸] 准备设置图片壁纸：\(url.lastPathComponent)") // 关键步骤日志
+        LogCenter.log("[壁纸] 准备设置图片壁纸：\(url.lastPathComponent)") // 关键步骤日志
 
         guard FileManager.default.fileExists(atPath: url.path) else { // 判断文件是否存在
             throw WallpaperError.invalidImage("文件不存在或不可访问。") // 抛出错误
@@ -33,7 +33,7 @@ struct WallpaperService {
             }
         }
 
-        print("[壁纸] 图片壁纸设置完成") // 关键步骤日志
+        LogCenter.log("[壁纸] 图片壁纸设置完成") // 关键步骤日志
     }
 
     // applyVideoPlaceholder：视频壁纸占位

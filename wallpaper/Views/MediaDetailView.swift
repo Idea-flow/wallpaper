@@ -62,7 +62,7 @@ struct MediaDetailView: View {
                     }
                     .onAppear { // 进入时打印日志
                         if let reason = result.reason { // 有原因
-                            NSLog("[预览-详情] \(reason)") // 日志
+                            LogCenter.log("[预览-详情] \(reason)", level: .warning) // 日志
                         }
                     }
                 }
@@ -424,9 +424,9 @@ struct MediaDetailView: View {
             do {
                 try MediaImportService.updateItem(item, from: url) // 更新素材
                 try? modelContext.save() // 保存
-                NSLog("[权限] 重新授权成功：\(url.lastPathComponent)") // 日志
+                LogCenter.log("[权限] 重新授权成功：\(url.lastPathComponent)") // 日志
             } catch {
-                NSLog("[权限] 重新授权失败：\(error.localizedDescription)") // 日志
+                LogCenter.log("[权限] 重新授权失败：\(error.localizedDescription)", level: .error) // 日志
             }
         }
     }

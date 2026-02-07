@@ -12,6 +12,7 @@ struct ContentView: View {
         case albums = "相册" // 相册
         case rules = "规则" // 规则
         case settings = "设置" // 设置
+        case logs = "日志" // 日志
 
         var id: String { rawValue } // 用字符串作为唯一标识
         var systemImage: String { // 侧栏图标
@@ -20,6 +21,7 @@ struct ContentView: View {
             case .albums: return "rectangle.stack" // 相册图标
             case .rules: return "clock.arrow.circlepath" // 规则图标
             case .settings: return "gearshape" // 设置图标
+            case .logs: return "doc.text.magnifyingglass" // 日志图标
             }
         }
     }
@@ -119,6 +121,8 @@ struct ContentView: View {
             RulesView(selectedRuleID: $selectedRuleID) // 规则列表
         case .settings:
             SettingsView() // 设置放在中间列
+        case .logs:
+            LogsView() // 日志页面
         }
     }
 
@@ -159,6 +163,8 @@ struct ContentView: View {
                 }
             case .settings:
                 EmptyView() // 设置不在详情列显示
+            case .logs:
+                EmptyView() // 日志不在详情列显示
             }
         }
         .padding() // 内边距
@@ -167,7 +173,7 @@ struct ContentView: View {
     private func handleImport(_ result: Result<[URL], Error>) { // 处理导入
         switch result { // 根据结果处理
         case .success(let urls):
-            print("[导入] 选择了 \(urls.count) 个文件") // 关键步骤日志
+            LogCenter.log("[导入] 选择了 \(urls.count) 个文件") // 关键步骤日志
             for url in urls { // 遍历导入
                 importOne(url) // 导入单个
             }
@@ -181,6 +187,7 @@ struct ContentView: View {
             let result = try MediaImportService.importMedia(from: url) // 调用导入服务
             modelContext.insert(result.item) // 写入数据库
         } catch {
+            LogCenter.log("[导入] 导入失败：\(url.lastPathComponent) \(error.localizedDescription)", level: .error) // 失败日志
             alertMessage = "导入失败：\(url.lastPathComponent)" // 提示失败
         }
     }
@@ -194,20 +201,23 @@ struct ContentView: View {
                 VideoWallpaperService.shared.stopAll() // 切换到图片时停止视频壁纸
                 let targetScreen = screenID == "all" ? nil : ScreenHelper.screenByID(screenID) // 目标屏幕
                 if screenID != "all" && targetScreen == nil { // 未找到目标屏幕
-                    NSLog("[壁纸] 未找到目标屏幕，screenID=\(screenID)") // 日志
+                    LogCenter.log("[壁纸] 未找到目标屏幕，screenID=\(screenID)", level: .warning) // 日志
                 }
                 try MediaAccessService.withResolvedURL(for: item) { url in // 使用安全路径
                     try WallpaperService.applyImage(url: url, to: targetScreen, fitMode: fitMode) // 设置壁纸
                 }
+                LogCenter.log("[壁纸] 图片壁纸应用成功：\(item.fileURL.lastPathComponent)") // 成功日志
                 alertMessage = screenID == "all" ? "已应用到所有屏幕。" : "已应用到指定屏幕。" // 提示成功
             } else if item.type == .video { // 视频壁纸
                 let targetScreenID = screenID == "all" ? nil : screenID // 目标屏幕 ID
                 try VideoWallpaperService.shared.applyVideo(item: item, fitMode: fitMode, screenID: targetScreenID) // 启动视频壁纸
+                LogCenter.log("[壁纸] 视频壁纸应用成功：\(item.fileURL.lastPathComponent)") // 成功日志
                 alertMessage = screenID == "all" ? "视频壁纸已启动（所有屏幕）。" : "视频壁纸已启动（指定屏幕）。" // 提示成功
             } else {
                 try WallpaperService.applyVideoPlaceholder() // 其他类型占位
             }
         } catch {
+            LogCenter.log("[壁纸] 设置失败：\(error.localizedDescription)", level: .error) // 失败日志
             alertMessage = item.type == .video
                 ? "视频壁纸设置失败：\(error.localizedDescription)" // 视频失败
                 : "设置壁纸失败：\(error.localizedDescription)" // 图片失败

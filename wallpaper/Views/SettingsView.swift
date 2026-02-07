@@ -123,7 +123,7 @@ struct SettingsView: View {
         .alert("确认清理缓存？", isPresented: $showingClearCacheConfirm) { // 清理确认
             Button("清理", role: .destructive) { // 确认清理
                 ThumbnailCache.shared.clear() // 清空缓存
-                NSLog("[设置] 已清理缩略图缓存") // 日志
+                LogCenter.log("[设置] 已清理缩略图缓存") // 日志
             }
             Button("取消", role: .cancel) { } // 取消
         } message: {
@@ -136,11 +136,11 @@ struct SettingsView: View {
         do {
             try AutoLaunchService.setEnabled(enabled) // 调用系统 API
             autoLaunchEnabled = AutoLaunchService.isEnabled() // 读取真实状态
-            NSLog("[设置] 开机自启状态：\(autoLaunchEnabled)") // 日志
+            LogCenter.log("[设置] 开机自启状态：\(autoLaunchEnabled)") // 日志
         } catch {
             alertMessage = "开机自启设置失败：\(error.localizedDescription)" // 提示错误
             autoLaunchEnabled = AutoLaunchService.isEnabled() // 回滚状态
-            NSLog("[设置] 开机自启失败：\(error.localizedDescription)") // 日志
+            LogCenter.log("[设置] 开机自启失败：\(error.localizedDescription)", level: .error) // 日志
         }
     }
 
@@ -150,7 +150,7 @@ struct SettingsView: View {
             get: { ThemeColor.color(from: themeColorHex) }, // 读取颜色
             set: { newColor in // 设置颜色
                 themeColorHex = ThemeColor.hex(from: newColor) // 保存主题色
-                NSLog("[设置] 主题色更新：\(themeColorHex)") // 日志
+                LogCenter.log("[设置] 主题色更新：\(themeColorHex)") // 日志
             }
         )
     }
@@ -259,7 +259,7 @@ extension SettingsView {
         let color = ThemeColor.color(from: hex)
         return Button {
             themeColorHex = hex
-            NSLog("[设置] 主题色更新：\(themeColorHex)")
+            LogCenter.log("[设置] 主题色更新：\(themeColorHex)")
         } label: {
             ZStack {
                 Circle()

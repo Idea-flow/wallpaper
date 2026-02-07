@@ -157,6 +157,9 @@ Item.swift：SwiftData 模型，仅含一个 timestamp 字段。
 图标:
 modern Chinese aesthetic, xianxia (immortal) vibe, minimal composition, misty mountains and flowing clouds, soft ink-wash gradient, jade white + pale cyan palette, lots of negative space, elegant and serene, rounded square canvas, no text, no watermark, 1024x1024, 
 
+1.在现有项目里实现方案 A
+2.右侧菜单,新增一个日志菜单, 这个软件中的所有操作,以及错误日志,都在这个日志菜单中显示
+
 
 
 # 菜单栏

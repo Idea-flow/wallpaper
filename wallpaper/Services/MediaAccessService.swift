@@ -41,7 +41,7 @@ struct MediaAccessService {
         } catch {
             // 如果解析书签失败，尝试作为回退：对原始 fileURL 启动安全访问并执行操作
             // 这样能在书签损坏或不适用时，仍然尝试读取文件（在非沙盒或 fileURL 保持可访问的情况下有效）
-            NSLog("[MediaAccessService] 解析书签失败，回退到原始路径访问：\(error.localizedDescription)")
+            LogCenter.log("[MediaAccessService] 解析书签失败，回退到原始路径访问：\(error.localizedDescription)", level: .warning)
             let didAccess = item.fileURL.startAccessingSecurityScopedResource()
             if didAccess {
                 defer { item.fileURL.stopAccessingSecurityScopedResource() }
@@ -81,13 +81,13 @@ struct MediaAccessService {
 
         if !FileManager.default.fileExists(atPath: fileURL.path) { // 判断文件是否存在
             let reason = "文件不存在：\(fileURL.lastPathComponent)" // 原因
-            NSLog("[MediaAccessService] \(reason)") // 日志
+            LogCenter.log("[MediaAccessService] \(reason)", level: .warning) // 日志
             return ImageLoadResult(image: nil, reason: reason) // 返回失败
         }
 
         if !FileManager.default.isReadableFile(atPath: fileURL.path) { // 判断是否可读
             let reason = "没有读取权限（可能是沙盒权限）：\(fileURL.lastPathComponent)" // 原因
-            NSLog("[MediaAccessService] \(reason)") // 日志
+            LogCenter.log("[MediaAccessService] \(reason)", level: .warning) // 日志
             return ImageLoadResult(image: nil, reason: reason) // 返回失败
         }
 
@@ -104,7 +104,7 @@ struct MediaAccessService {
             return ImageLoadResult(image: image, reason: nil) // 返回成功
         } catch { // withResolvedURL 抛错
             let reason = "安全访问失败：\(error.localizedDescription)" // 原因
-            NSLog("[MediaAccessService] \(reason)") // 日志
+            LogCenter.log("[MediaAccessService] \(reason)", level: .warning) // 日志
             return ImageLoadResult(image: nil, reason: reason) // 返回失败
         }
     }
@@ -113,10 +113,10 @@ struct MediaAccessService {
     static func beginAccess(for item: MediaItem) throws -> AccessToken {
         let fileURL = item.fileURL // 原始路径
         if !FileManager.default.fileExists(atPath: fileURL.path) { // 文件不存在
-            NSLog("[MediaAccessService] beginAccess: 文件不存在：\(fileURL.path)") // 日志
+            LogCenter.log("[MediaAccessService] beginAccess: 文件不存在：\(fileURL.path)", level: .error) // 日志
         }
         if !FileManager.default.isReadableFile(atPath: fileURL.path) { // 文件不可读
-            NSLog("[MediaAccessService] beginAccess: 文件不可读（可能是权限问题）：\(fileURL.path)") // 日志
+            LogCenter.log("[MediaAccessService] beginAccess: 文件不可读（可能是权限问题）：\(fileURL.path)", level: .error) // 日志
         }
 
         guard let bookmarkData = item.bookmarkData else { // 没有书签
@@ -143,7 +143,7 @@ struct MediaAccessService {
                 }
             })
         } catch { // 解析失败时回退
-            NSLog("[MediaAccessService] beginAccess: 解析书签失败，回退使用 fileURL：\(error.localizedDescription)")
+            LogCenter.log("[MediaAccessService] beginAccess: 解析书签失败，回退使用 fileURL：\(error.localizedDescription)", level: .warning)
             let didAccess = fileURL.startAccessingSecurityScopedResource() // 尝试安全访问
             return AccessToken(url: fileURL, stopAccess: { // 返回原路径
                 if didAccess { // 确保访问成功
