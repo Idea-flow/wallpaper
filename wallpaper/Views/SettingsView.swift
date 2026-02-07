@@ -7,6 +7,7 @@ struct SettingsView: View {
     @AppStorage("reduceVideoPower") private var reduceVideoPower = true // 低功耗
     @AppStorage("themeColorHex") private var themeColorHex = ThemeColor.defaultHex // 主题色
     @AppStorage("themeMode") private var themeMode = "system" // 主题模式
+    @AppStorage("sidebarSelectionStyle") private var sidebarSelectionStyle = "custom" // 侧栏选中样式
     @State private var alertMessage: String? // 错误提示
     @State private var showingClearCacheConfirm = false // 清理确认弹窗
     @State private var showingCustomPicker = false // 自定义颜色
@@ -52,6 +53,10 @@ struct SettingsView: View {
 
                 // 外观设置
                 GlassSection(title: "界面外观") {
+                    capsuleToggle(title: "侧栏选中使用主题色", isOn: Binding(
+                        get: { sidebarSelectionStyle == "custom" },
+                        set: { sidebarSelectionStyle = $0 ? "custom" : "system" }
+                    ))
                     HStack {
                         Text("主题模式")
                         Spacer()

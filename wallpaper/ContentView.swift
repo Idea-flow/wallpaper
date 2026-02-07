@@ -6,6 +6,7 @@ import UniformTypeIdentifiers // 文件类型识别
 // ContentView：主界面，包含侧栏、列表和详情预览
 struct ContentView: View {
     @AppStorage("themeColorHex") private var themeColorHex = ThemeColor.defaultHex // 主题色
+    @AppStorage("sidebarSelectionStyle") private var sidebarSelectionStyle = "custom" // 侧栏选中样式
     // SidebarSection：侧栏分类
     enum SidebarSection: String, CaseIterable, Identifiable {
         case library = "素材库" // 素材库
@@ -101,20 +102,53 @@ struct ContentView: View {
     }
 
     private var sidebarList: some View { // 侧栏列表
-        List(SidebarSection.allCases, selection: $sidebarSelection) { section in // 侧栏列表
-            Label(section.rawValue, systemImage: section.systemImage) // 侧栏行
-                .tag(section) // 绑定选择
-                .contentShape(Rectangle()) // 扩大可点击区域
-                .listRowBackground(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(sidebarSelection == section ? ThemeColor.color(from: themeColorHex).opacity(0.22) : Color.clear)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
-                )
+        Group {
+            if sidebarSelectionStyle == "custom" { // 自定义主题色
+                List(SidebarSection.allCases) { section in // 侧栏列表
+                    Button { // 点击切换
+                        sidebarSelection = section // 更新选择
+                    } label: {
+                        sidebarRowLabel(section) // 侧栏行
+                    }
+                    .buttonStyle(.plain)
+                    .listRowBackground(sidebarRowBackground(for: section))
+                    .listRowSeparator(.hidden)
+                }
+                .tint(.clear) // 关闭系统高亮
+                .scrollContentBackground(.hidden)
+                .background(Color.clear)
+            } else { // 系统高亮
+                List(SidebarSection.allCases, selection: $sidebarSelection) { section in // 侧栏列表
+                    sidebarRowLabel(section) // 侧栏行
+                        .tag(section) // 绑定选择
+                }
+                .tint(.accentColor) // 使用系统高亮
+            }
         }
         .listStyle(.sidebar) // 侧栏样式
         .navigationSplitViewColumnWidth(min: 180, ideal: 220) // 侧栏宽度
-        .tint(ThemeColor.color(from: themeColorHex)) // 选中颜色跟随主题色
+    }
+
+    private func sidebarRowBackground(for section: SidebarSection) -> some View {
+        Group {
+            if sidebarSelectionStyle == "custom" {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(sidebarSelection == section ? ThemeColor.color(from: themeColorHex).opacity(0.22) : Color.clear)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+            } else {
+                Color.clear
+            }
+        }
+    }
+
+    private func sidebarRowLabel(_ section: SidebarSection) -> some View { // 侧栏行视图
+        HStack(spacing: 10) {
+            Label(section.rawValue, systemImage: section.systemImage) // 图标+标题
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading) // 拉伸点击区域
+        .contentShape(Rectangle()) // 扩大可点击区域
     }
 
     private func updateColumnVisibility(for section: SidebarSection) { // 更新列显示
@@ -139,8 +173,10 @@ struct ContentView: View {
             ) { // 导入回调
                 showingImporter = true // 打开导入
             }
+            .navigationSplitViewColumnWidth(min: 300, ideal: 560, max: 760)
         case .albums:
             AlbumsView(selectedAlbumID: $selectedAlbumID) // 相册列表
+                .navigationSplitViewColumnWidth(min: 300, ideal: 560, max: 760)
         case .rules:
             RulesView(selectedRuleID: $selectedRuleID) // 规则列表
         case .settings:

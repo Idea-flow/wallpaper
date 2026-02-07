@@ -146,6 +146,7 @@ struct AlbumDetailView: View {
             contentSection // 内容区
         }
         .padding() // 内边距
+        .padding(.leading, 8) // 与侧栏保持间距
         .sheet(isPresented: $showingAddSheet) { // 添加素材弹窗
             NavigationStack { // 导航
                 GeometryReader { proxy in
