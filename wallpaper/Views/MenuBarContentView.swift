@@ -17,6 +17,12 @@ struct MenuBarContentView: View { // 菜单栏视图
 
             Divider() // 分隔线
 
+            Button("随机壁纸") { // 随机壁纸
+                MenuBarActions.applyRandomWallpaper(in: modelContext) // 随机设置
+            } // 结束按钮
+
+            Divider() // 分隔线
+
             if videoActive {
                 if videoPaused {
                     Button("开始视频壁纸") {

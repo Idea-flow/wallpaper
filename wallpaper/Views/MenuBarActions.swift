@@ -68,5 +68,30 @@ enum MenuBarActions { // 枚举作为命名空间
         } // 结束
     }
 
+    static func applyRandomWallpaper(in context: ModelContext) { // 随机壁纸
+        do { // 捕获错误
+            let items = try context.fetch(FetchDescriptor<MediaItem>()) // 获取素材
+            guard let item = items.randomElement() else { // 无素材
+                LogCenter.log("[菜单栏] 随机壁纸失败：素材库为空", level: .warning) // 日志
+                return // 结束
+            }
+            LogCenter.log("[菜单栏] 随机选择：\(item.fileURL.lastPathComponent)") // 日志
+            if item.type == .image { // 图片
+                VideoWallpaperService.shared.stopAll() // 停止视频壁纸
+                try MediaAccessService.withResolvedURL(for: item) { url in // 安全访问
+                    try WallpaperService.applyImage(url: url, to: nil, fitMode: .fill) // 应用图片
+                }
+                LogCenter.log("[菜单栏] 随机图片已应用") // 成功日志
+            } else if item.type == .video { // 视频
+                try VideoWallpaperService.shared.applyVideo(item: item, fitMode: .fill, screenID: nil) // 应用视频
+                LogCenter.log("[菜单栏] 随机视频已应用") // 成功日志
+            } else { // 其他类型
+                LogCenter.log("[菜单栏] 随机壁纸失败：不支持的素材类型", level: .warning) // 日志
+            }
+        } catch { // 失败处理
+            LogCenter.log("[菜单栏] 随机壁纸失败：\(error.localizedDescription)", level: .error) // 日志
+        }
+    }
+
     // 上一张/下一张 已移除
 } // 结束
