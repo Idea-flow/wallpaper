@@ -66,6 +66,7 @@ struct ContentView: View {
     @State private var filterType: MediaType? = nil // 类型筛选
     @State private var showFavoritesOnly = false // 仅收藏
     @State private var bingStore = BingWallpaperStore() // Bing 壁纸状态
+    @Environment(\.colorScheme) private var colorScheme // 亮/暗模式
 
     var body: some View { // 主界面
         Group {
@@ -169,8 +170,28 @@ struct ContentView: View {
     private func sidebarRowBackground(for section: SidebarSection) -> some View {
         Group {
             if sidebarSelectionStyle == "custom" {
+                let base = ThemeColor.color(from: themeColorHex)
+                let isSelected = sidebarSelection == section
+                let fillOpacity: Double = {
+                    switch (colorScheme, isSelected) {
+                    case (.dark, true): return 0.45
+                    case (.light, true): return 0.28
+                    default: return 0.0
+                    }
+                }()
+                let strokeOpacity: Double = {
+                    switch (colorScheme, isSelected) {
+                    case (.dark, true): return 0.55
+                    case (.light, true): return 0.35
+                    default: return 0.0
+                    }
+                }()
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(sidebarSelection == section ? ThemeColor.color(from: themeColorHex).opacity(0.22) : Color.clear)
+                    .fill(isSelected ? base.opacity(fillOpacity) : Color.clear)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(isSelected ? base.opacity(strokeOpacity) : Color.clear, lineWidth: 0.8)
+                    )
                     .padding(.horizontal, 4)
                     .padding(.vertical, 2)
             } else {

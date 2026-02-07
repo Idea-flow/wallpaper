@@ -142,32 +142,56 @@ struct MediaDetailView: View {
     }
 
     private var controlSection: some View { // 屏幕与适配控制
-        VStack(alignment: .leading, spacing: 12) { // 垂直布局
-            if item.type == .image || item.type == .video { // 图片/视频显示屏幕选择
-                screenPicker // 屏幕选择
-            }
-            if item.type == .image { // 仅图片显示适配模式
-                fitModePicker // 适配模式选择器
-            }
-        }
-        .padding(12) // 内边距
-    }
-
-    private var infoSection: some View { // 元信息
-        VStack(alignment: .leading, spacing: 10) { // 垂直布局
-            Text("信息") // 标题
+        VStack(alignment: .leading, spacing: 16) { // 垂直布局
+            Text("应用屏幕") // 标题
                 .font(.headline) // 标题字号
-            LazyVGrid(columns: infoColumns, alignment: .leading, spacing: 12) { // 横向信息
-                ForEach(infoItems) { item in
-                    infoChip(title: item.title, value: item.value)
+            VStack(alignment: .leading, spacing: 12) { // 内容
+                if item.type == .image || item.type == .video { // 图片/视频显示屏幕选择
+                    screenPicker // 屏幕选择
+                }
+                if item.type == .image { // 仅图片显示适配模式
+                    fitModePicker // 适配模式选择器
                 }
             }
         }
-        .padding(12) // 内边距
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(20)
+        .glassPanel(cornerRadius: 16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(.white.opacity(0.18), lineWidth: 0.6)
+        )
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+    }
+
+    private var infoSection: some View { // 元信息
+        VStack(alignment: .leading, spacing: 16) { // 垂直布局
+            Text("信息") // 标题
+                .font(.headline) // 标题字号
+            VStack(alignment: .leading, spacing: 12) { // 信息列表
+                infoPathRow // 路径
+                if !infoItems.isEmpty { Divider().background(.white.opacity(0.1)) }
+                ForEach(infoItems) { item in
+                    infoRow(title: item.title, value: item.value)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if item.id != infoItems.last?.id {
+                        Divider().background(.white.opacity(0.1))
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(20)
+        .glassPanel(cornerRadius: 16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(.white.opacity(0.18), lineWidth: 0.6)
+        )
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
 
     private var editSection: some View { // 编辑区域
-        VStack(alignment: .leading, spacing: 10) { // 垂直布局
+        VStack(alignment: .leading, spacing: 16) { // 垂直布局
             Text("编辑") // 标题
                 .font(.headline) // 标题字号
             HStack(alignment: .center, spacing: 16) { // 横向编辑
@@ -182,22 +206,28 @@ struct MediaDetailView: View {
 //                 }
 //             }
         }
-        .padding(12) // 内边距
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(20)
+        .glassPanel(cornerRadius: 16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(.white.opacity(0.18), lineWidth: 0.6)
+        )
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
     }
 
     private var fitModePicker: some View { // 适配模式选择器
         VStack(alignment: .leading, spacing: 8) { // 垂直布局
             Text("适配模式") // 标题
                 .foregroundStyle(.secondary) // 次级颜色
-            Picker("", selection: $fitMode) { // 选择器
+            Picker("适配模式", selection: $fitMode) { // 下拉框
                 Text(FitMode.fill.displayName).tag(FitMode.fill) // 充满屏幕
                 Text(FitMode.fit.displayName).tag(FitMode.fit) // 适应于屏幕
                 Text(FitMode.stretch.displayName).tag(FitMode.stretch) // 拉伸以充满屏幕
                 Text(FitMode.center.displayName).tag(FitMode.center) // 居中显示
                 Text(FitMode.tile.displayName).tag(FitMode.tile) // 拼贴
             }
-            .pickerStyle(.segmented) // 分段样式
-            .padding(4)
+            .pickerStyle(.menu) // 菜单样式
         }
     }
 
@@ -240,7 +270,6 @@ struct MediaDetailView: View {
 
     private var infoItems: [InfoItem] { // 图片/视频展示不同内容
         var items: [InfoItem] = []
-        items.append(.init(title: "路径", value: item.fileURL.path))
         if let resolutionText {
             items.append(.init(title: "分辨率", value: resolutionText))
         }
@@ -259,11 +288,7 @@ struct MediaDetailView: View {
         return items
     }
 
-    private var infoColumns: [GridItem] { // 横向布局
-        [GridItem(.adaptive(minimum: 140), spacing: 12, alignment: .leading)]
-    }
-
-    private func infoChip(title: String, value: String) -> some View { // 信息块
+    private func infoRow(title: String, value: String) -> some View { // 信息行
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.caption)
@@ -271,9 +296,36 @@ struct MediaDetailView: View {
             Text(value)
                 .font(.subheadline)
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 10)
-        .background(.ultraThinMaterial, in: .rect(cornerRadius: 8, style: .continuous))
+    }
+
+    private var infoPathRow: some View { // 路径行
+        VStack(alignment: .leading, spacing: 8) {
+            Text("路径")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(item.fileURL.path)
+                .font(.subheadline)
+                .textSelection(.enabled)
+            HStack(spacing: 8) {
+                Button {
+                    openInFinder()
+                } label: {
+                    Label("打开所在文件夹", systemImage: "folder")
+                        .font(.subheadline)
+                }
+                .buttonStyle(.plain)
+                .glassCapsuleBackground()
+
+                Button {
+                    copyPath()
+                } label: {
+                    Label("复制路径", systemImage: "doc.on.doc")
+                        .font(.subheadline)
+                }
+                .buttonStyle(.plain)
+                .glassCapsuleBackground()
+            }
+        }
     }
 
     private var typeText: String { // 类型文本
@@ -416,5 +468,15 @@ struct MediaDetailView: View {
                 LogCenter.log("[权限] 重新授权失败：\(error.localizedDescription)", level: .error) // 日志
             }
         }
+    }
+
+    private func openInFinder() { // 打开所在文件夹
+        NSWorkspace.shared.activateFileViewerSelecting([item.fileURL])
+    }
+
+    private func copyPath() { // 复制路径
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(item.fileURL.path, forType: .string)
     }
 }

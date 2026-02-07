@@ -18,6 +18,7 @@ struct LibraryView: View {
     @State private var showingTagEditor = false // 是否显示标签弹窗
     @State private var tagInput = "" // 标签输入
     @State private var viewMode: ViewMode = .grid // 视图模式
+    @State private var deleteAlertMessage: String? // 删除失败提示
 
     // ViewMode：视图模式
     private enum ViewMode: String { // 可选类型
@@ -52,8 +53,7 @@ struct LibraryView: View {
                                         try? modelContext.save()
                                     }
                                     Button("删除", role: .destructive) {
-                                        modelContext.delete(item)
-                                        try? modelContext.save()
+                                        deleteItem(item)
                                     }
                                 }
                             }
@@ -165,6 +165,14 @@ struct LibraryView: View {
         } message: {
             Text("将标签应用到已选择素材") // 提示
         }
+        .alert("删除失败", isPresented: Binding( // 删除失败弹窗
+            get: { deleteAlertMessage != nil },
+            set: { _ in deleteAlertMessage = nil }
+        )) {
+            Button("好") { deleteAlertMessage = nil }
+        } message: {
+            Text(deleteAlertMessage ?? "")
+        }
     }
 
     private var filteredItems: [MediaItem] { // 过滤结果
@@ -198,7 +206,7 @@ struct LibraryView: View {
 
     private func deleteItems(offsets: IndexSet) { // 删除
         for index in offsets { // 遍历
-            modelContext.delete(filteredItems[index]) // 删除对象
+            deleteItem(filteredItems[index]) // 删除对象
         }
     }
 
@@ -247,5 +255,24 @@ struct LibraryView: View {
         let usableWidth = max(width - 32, cardMinWidth)
         let count = max(Int(usableWidth / cardMinWidth), 1)
         return Array(repeating: GridItem(.flexible(), spacing: 16), count: count)
+    }
+
+    private func deleteItem(_ item: MediaItem) { // 删除素材与文件
+        do {
+            try MediaAccessService.withResolvedURL(for: item) { url in
+                if FileManager.default.fileExists(atPath: url.path) {
+                    try FileManager.default.removeItem(at: url)
+                    LogCenter.log("[删除] 删除文件成功：\(url.lastPathComponent)")
+                } else {
+                    LogCenter.log("[删除] 文件不存在：\(url.lastPathComponent)", level: .warning)
+                }
+            }
+            modelContext.delete(item)
+            try? modelContext.save()
+            LogCenter.log("[删除] 从素材库移除记录：\(item.fileURL.lastPathComponent)")
+        } catch {
+            LogCenter.log("[删除] 删除文件失败：\(error.localizedDescription)", level: .error)
+            deleteAlertMessage = "删除失败，可手动打开文件夹删除。\n路径：\(item.fileURL.path)"
+        }
     }
 }
