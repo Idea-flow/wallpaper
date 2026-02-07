@@ -5,6 +5,9 @@ struct SettingsView: View {
     @AppStorage("autoLaunchEnabled") private var autoLaunchEnabled = false // 开机自启
     @AppStorage("menuBarEnabled") private var menuBarEnabled = false // 菜单栏
     @AppStorage("dockIconHidden") private var dockIconHidden = false // Dock 图标隐藏
+    @AppStorage("autoCheckUpdates") private var autoCheckUpdates = true // 自动检查更新
+    @AppStorage("updateFeedURL") private var updateFeedURL = "" // 更新 JSON 地址
+    @AppStorage("lastUpdateCheck") private var lastUpdateCheck = 0.0 // 上次检查时间
     @AppStorage("reduceVideoPower") private var reduceVideoPower = true // 低功耗
     @AppStorage("pauseVideoWhenLowPower") private var pauseVideoWhenLowPower = true // 低电/遮挡暂停
     @AppStorage("themeColorHex") private var themeColorHex = ThemeColor.defaultHex // 主题色
@@ -15,6 +18,8 @@ struct SettingsView: View {
     @State private var showingCustomPicker = false // 自定义颜色
     @StateObject private var perfMonitor = PerformanceMonitor() // 性能监控
     @AppStorage("performanceMonitorEnabled") private var performanceMonitorEnabled = false // 性能监控开关
+    @State private var isCheckingUpdate = false // 更新检查中
+    @State private var updateAlert: UpdateAlertItem? // 更新提示
 
     var body: some View { // 主体
         ScrollView {
@@ -48,6 +53,44 @@ struct SettingsView: View {
                             menuBarEnabled = newValue
                         }
                     ))
+                }
+
+                // 版本更新
+                GlassSection(title: "版本更新") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("当前版本")
+                            Spacer()
+                            Text("\(UpdateService.currentVersionString()) (\(UpdateService.currentBuildNumber()))")
+                                .foregroundStyle(.secondary)
+                        }
+                        HStack {
+                            Text("更新地址")
+                            Spacer()
+                            Text(updateFeedURL.isEmpty ? "未配置" : "已配置")
+                                .foregroundStyle(.secondary)
+                        }
+                        Text("更新地址使用 GitHub 托管的 JSON 文件。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        TextField("更新 JSON 地址", text: $updateFeedURL)
+                            .textFieldStyle(.roundedBorder)
+                        capsuleToggle(title: "自动检查更新", isOn: $autoCheckUpdates)
+                        if lastUpdateCheck > 0 {
+                            HStack {
+                                Text("上次检查")
+                                Spacer()
+                                Text(lastCheckText)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Button(isCheckingUpdate ? "检查中…" : "检查更新") {
+                            Task { await checkForUpdates(showNoUpdateAlert: true) }
+                        }
+                        .disabled(isCheckingUpdate)
+                        .glassCapsuleBackground()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 // 性能设置
@@ -207,6 +250,23 @@ struct SettingsView: View {
         } message: {
             Text("将清空本地缩略图缓存。") // 提示
         }
+        .alert(item: $updateAlert) { alert in
+            if let url = alert.downloadURL {
+                return Alert(
+                    title: Text(alert.title),
+                    message: Text(alert.message),
+                    primaryButton: .default(Text(alert.primaryButton)) {
+                        UpdateService.openDownload(url)
+                    },
+                    secondaryButton: .cancel(Text("取消"))
+                )
+            }
+            return Alert(
+                title: Text(alert.title),
+                message: Text(alert.message),
+                dismissButton: .default(Text("好"))
+            )
+        }
     }
 
     private func setAutoLaunch(_ enabled: Bool) { // 设置开机自启
@@ -246,6 +306,63 @@ struct SettingsView: View {
         formatter.allowedUnits = [.useMB, .useGB]
         formatter.countStyle = .memory
         return formatter.string(fromByteCount: Int64(bytes))
+    }
+
+    private var lastCheckText: String {
+        let date = Date(timeIntervalSince1970: lastUpdateCheck)
+        return dateFormatter.string(from: date)
+    }
+
+    private var dateFormatter: DateFormatter { // 日期格式
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "yyyy年M月d日 HH:mm"
+        return formatter
+    }
+
+    @MainActor
+    private func checkForUpdates(showNoUpdateAlert: Bool) async {
+        guard let url = URL(string: updateFeedURL), !updateFeedURL.isEmpty else {
+            updateAlert = UpdateAlertItem(
+                title: "未配置更新地址",
+                message: "请在设置中填写更新 JSON 地址。",
+                primaryButton: "好",
+                downloadURL: nil
+            )
+            return
+        }
+        isCheckingUpdate = true
+        defer { isCheckingUpdate = false }
+        do {
+            let result = try await UpdateService.checkUpdates(from: url)
+            lastUpdateCheck = Date().timeIntervalSince1970
+            switch result {
+            case .upToDate:
+                if showNoUpdateAlert {
+                    updateAlert = UpdateAlertItem(
+                        title: "已是最新版本",
+                        message: "当前已是最新版本。",
+                        primaryButton: "好",
+                        downloadURL: nil
+                    )
+                }
+            case .updateAvailable(let release, let isMandatory):
+                let mandatoryText = isMandatory ? "（需要更新）" : ""
+                updateAlert = UpdateAlertItem(
+                    title: "发现新版本 \(release.version) \(mandatoryText)",
+                    message: release.notes.isEmpty ? "点击下载更新。" : release.notes,
+                    primaryButton: "下载更新",
+                    downloadURL: release.downloadURL
+                )
+            }
+        } catch {
+            updateAlert = UpdateAlertItem(
+                title: "检查失败",
+                message: error.localizedDescription,
+                primaryButton: "好",
+                downloadURL: nil
+            )
+        }
     }
 }
 
@@ -309,6 +426,14 @@ struct ThemeModeSelector: View {
         }
         .glassCapsuleBackground()
     }
+}
+
+private struct UpdateAlertItem: Identifiable {
+    let id = UUID()
+    let title: String
+    let message: String
+    let primaryButton: String
+    let downloadURL: URL?
 }
 
 extension SettingsView {

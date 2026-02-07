@@ -66,6 +66,11 @@ struct ContentView: View {
     @State private var filterType: MediaType? = nil // 类型筛选
     @State private var showFavoritesOnly = false // 仅收藏
     @State private var bingStore = BingWallpaperStore() // Bing 壁纸状态
+    @AppStorage("autoCheckUpdates") private var autoCheckUpdates = true // 自动检查更新
+    @AppStorage("updateFeedURL") private var updateFeedURL = "" // 更新 JSON 地址
+    @AppStorage("lastUpdateCheck") private var lastUpdateCheck = 0.0 // 上次检查时间
+    @State private var updateAlert: UpdateAlertItem? // 更新提示
+    @State private var didAutoCheckUpdate = false // 防止重复检查
     @Environment(\.colorScheme) private var colorScheme // 亮/暗模式
 
     var body: some View { // 主界面
@@ -92,6 +97,9 @@ struct ContentView: View {
         .onChange(of: sidebarSelection) { newValue in // 监听切换
             updateColumnVisibility(for: newValue) // 更新列显示
         }
+        .task { // 自动更新检查
+            await autoCheckUpdateIfNeeded()
+        }
         .fileImporter( // 导入文件弹窗
             isPresented: $showingImporter, // 是否显示
             allowedContentTypes: [.image, .movie], // 允许图片和视频
@@ -106,6 +114,23 @@ struct ContentView: View {
             Button("好") { alertMessage = nil } // 确认按钮
         } message: {
             Text(alertMessage ?? "") // 显示提示内容
+        }
+        .alert(item: $updateAlert) { alert in
+            if let url = alert.downloadURL {
+                return Alert(
+                    title: Text(alert.title),
+                    message: Text(alert.message),
+                    primaryButton: .default(Text(alert.primaryButton)) {
+                        UpdateService.openDownload(url)
+                    },
+                    secondaryButton: .cancel(Text("取消"))
+                )
+            }
+            return Alert(
+                title: Text(alert.title),
+                message: Text(alert.message),
+                dismissButton: .default(Text("好"))
+            )
         }
     }
 
@@ -347,6 +372,36 @@ struct ContentView: View {
                 : "设置壁纸失败：\(error.localizedDescription)" // 图片失败
         }
     }
+
+    @MainActor
+    private func autoCheckUpdateIfNeeded() async {
+        guard !didAutoCheckUpdate, autoCheckUpdates else { return }
+        didAutoCheckUpdate = true
+        guard let url = URL(string: updateFeedURL), !updateFeedURL.isEmpty else { return }
+        do {
+            let result = try await UpdateService.checkUpdates(from: url)
+            lastUpdateCheck = Date().timeIntervalSince1970
+            if case let .updateAvailable(release, isMandatory) = result {
+                let mandatoryText = isMandatory ? "（需要更新）" : ""
+                updateAlert = UpdateAlertItem(
+                    title: "发现新版本 \(release.version) \(mandatoryText)",
+                    message: release.notes.isEmpty ? "点击下载更新。" : release.notes,
+                    primaryButton: "下载更新",
+                    downloadURL: release.downloadURL
+                )
+            }
+        } catch {
+            LogCenter.log("[更新] 自动检查失败：\(error.localizedDescription)", level: .warning)
+        }
+    }
+}
+
+private struct UpdateAlertItem: Identifiable {
+    let id = UUID()
+    let title: String
+    let message: String
+    let primaryButton: String
+    let downloadURL: URL?
 }
 
 // MediaRow：素材列表行
