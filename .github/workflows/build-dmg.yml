@@ -65,6 +65,10 @@ jobs:
           # Copy the app into the mounted image
           cp -R "$APP_PATH" "$MOUNT_POINT/"
 
+          # Ensure file system updates are flushed and allow Finder a moment to register items
+          sync
+          sleep 1
+
           # Fallback: create a symbolic link to /Applications so there's an item even when AppleScript cannot run in CI
           if [ ! -e "$MOUNT_POINT/Applications" ]; then
             ln -s /Applications "$MOUNT_POINT/Applications" || true
@@ -84,9 +88,89 @@ jobs:
 
           sudo xattr -cr '/Applications/wallpaper.app'
 
-          3) 开机自启需要系统批准：系统设置 → 登录项中允许本应用。
 
           README
+
+          # Try to arrange icons (wallpaper.app left, Applications right, README center) via AppleScript -- non-fatal
+          osascript <<'AS' || true
+          tell application "Finder"
+            try
+              tell disk "$APP_NAME"
+                open
+                delay 0.5
+                set current view of container window to icon view
+                set toolbar visible of container window to false
+                set statusbar visible of container window to false
+                set the bounds of container window to {120, 120, 820, 480}
+                set viewOptions to the icon view options of container window
+                set arrangement of viewOptions to not arranged
+                set icon size of viewOptions to 128
+
+                -- wait for items to appear (max ~5 seconds)
+                set maxAttempts to 12
+                set foundApp to false
+                set foundReadme to false
+                set foundAppsAlias to false
+                repeat with i from 1 to maxAttempts
+                  try
+                    if (exists item ("${APP_NAME}.app") of container window) then set foundApp to true
+                  end try
+                  try
+                    if (exists item "README.txt" of container window) then set foundReadme to true
+                  end try
+                  try
+                    if (exists item "Applications" of container window) then set foundAppsAlias to true
+                  end try
+                  try
+                    if (exists item "应用程序" of container window) then set foundAppsAlias to true
+                  end try
+                  if foundApp and foundReadme and foundAppsAlias then exit repeat
+                  delay 0.5
+                end repeat
+
+                -- position app: left (natural drag direction)
+                set appPos to {140, 200}
+                set readmePos to {360, 200}
+                set appsPos to {580, 200}
+
+                set app_candidates to {"${APP_NAME}.app", "${APP_NAME}"}
+                repeat with nm in app_candidates
+                  try
+                    if (exists item nm of container window) then
+                      set position of item nm of container window to appPos
+                      exit repeat
+                    end if
+                  end try
+                end repeat
+
+                -- README center
+                try
+                  if (exists item "README.txt" of container window) then
+                    set position of item "README.txt" of container window to readmePos
+                  end if
+                end try
+
+                -- Applications on right: try common localized names
+                set apps_candidates to {"Applications", "应用程序"}
+                repeat with anm in apps_candidates
+                  try
+                    if (exists item anm of container window) then
+                      set position of item anm of container window to appsPos
+                      exit repeat
+                    end if
+                  end try
+                end repeat
+
+                -- quick refresh so Finder shows the arranged layout naturally
+                delay 0.3
+                close
+                delay 0.2
+                open
+                update without registering applications
+              end tell
+            end try
+          end tell
+          AS
 
           # Detach and convert to compressed DMG
           FINAL_DMG="${APP_NAME}-${APP_VERSION}.dmg"
