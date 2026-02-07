@@ -9,8 +9,7 @@ final class VideoWallpaperService {
     // Entry：记录每个屏幕的窗口与播放器
     struct Entry {
         let window: NSWindow // 承载视频的窗口
-        let player: AVQueuePlayer // 视频播放器
-        let looper: AVPlayerLooper // 无缝循环器
+        let player: AVPlayer // 视频播放器
         let endObserver: Any // 循环播放监听
     }
 
@@ -62,8 +61,7 @@ final class VideoWallpaperService {
             let asset = AVURLAsset(url: token.url) // 创建视频资源
             let playerItem = AVPlayerItem(asset: asset) // 创建播放条目
             configurePerformanceHints(item: playerItem, asset: asset, screen: screen) // 性能优化：限帧/限码率/限分辨率
-            let player = AVQueuePlayer() // 创建队列播放器
-            let looper = AVPlayerLooper(player: player, templateItem: playerItem) // 无缝循环
+            let player = AVPlayer(playerItem: playerItem) // 创建播放器
             player.actionAtItemEnd = .none // 播放结束不自动停止
 
             let view = NSView(frame: NSRect(origin: .zero, size: screen.frame.size)) // 创建容器视图
@@ -80,16 +78,17 @@ final class VideoWallpaperService {
             player.play() // 播放视频
             LogCenter.log("[视频壁纸] 视图大小：\(view.bounds) layer=\(layer.frame)") // 日志
 
-            let endObserver = NotificationCenter.default.addObserver( // 保留日志用途
+            let endObserver = NotificationCenter.default.addObserver( // 监听播放结束
                 forName: .AVPlayerItemDidPlayToEndTime, // 播放结束通知
                 object: playerItem, // 仅监听当前条目
                 queue: .main // 主线程
             ) { _ in
-                LogCenter.log("[视频壁纸] 视频到达末尾（Looper 处理中）") // 仅日志，不再手动 seek
+                player.seek(to: .zero) // 回到起点
+                player.play() // 继续播放
             }
 
             let key = ObjectIdentifier(screen) // 生成屏幕标识
-            entries[key] = Entry(window: window, player: player, looper: looper, endObserver: endObserver) // 保存条目
+            entries[key] = Entry(window: window, player: player, endObserver: endObserver) // 保存条目
             LogCenter.log("[视频壁纸] 已启动屏幕：\(screen.localizedName) | id=\(screenIdentifier(screen))") // 关键步骤日志
         }
     }
