@@ -124,44 +124,6 @@ struct SettingsView: View {
                     }
                 }
 
-                // 数据存储
-                GlassSection(title: "数据存储") {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Text("SwiftData 数据库")
-                            Spacer()
-                            Text(swiftDataStorePath ?? "未找到")
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                                .textSelection(.enabled)
-                        }
-                        if swiftDataStorePath != nil {
-                            HStack(spacing: 8) {
-                                Button("打开所在文件夹") {
-                                    openSwiftDataFolder()
-                                }
-                                .glassCapsuleBackground()
-
-                                Button("打开数据库文件") {
-                                    openSwiftDataFile()
-                                }
-                                .glassCapsuleBackground()
-
-                                Button("复制路径") {
-                                    copySwiftDataPath()
-                                }
-                                .glassCapsuleBackground()
-                            }
-                        }
-                        Button("监控与诊断") {
-                            openWindow(id: "diagnostics")
-                        }
-                        .glassCapsuleBackground()
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
                 // 版本更新
                 GlassSection(title: "版本更新") {
                     VStack(alignment: .leading, spacing: 10) {
@@ -218,6 +180,32 @@ struct SettingsView: View {
                     Text("关闭时不采集数据，开启后每 1 秒刷新一次。")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    Button {
+                        openWindow(id: "diagnostics")
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "waveform.path.ecg")
+                            Text("监控与诊断")
+                                .font(.subheadline)
+                                .bold()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .foregroundStyle(.white)
+                        .background(
+                            LinearGradient(
+                                colors: [
+                                    ThemeColor.color(from: themeColorHex).opacity(0.9),
+                                    ThemeColor.color(from: themeColorHex).opacity(0.6),
+                                    .white.opacity(0.12)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .clipShape(.rect(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
                     HStack {
                         Text("进程 ID")
                         Spacer()
@@ -379,39 +367,7 @@ struct SettingsView: View {
         return formatter
     }
 
-    private var swiftDataStorePath: String? {
-        swiftDataStoreURL?.path
-    }
-
-    private var swiftDataStoreURL: URL? {
-        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            return nil
-        }
-        if let contents = try? FileManager.default.contentsOfDirectory(at: appSupport, includingPropertiesForKeys: nil) {
-            if let store = contents.first(where: { $0.pathExtension == "store" }) {
-                return store
-            }
-        }
-        let fallback = appSupport.appendingPathComponent("default.store")
-        return FileManager.default.fileExists(atPath: fallback.path) ? fallback : nil
-    }
-
-    private func openSwiftDataFolder() {
-        guard let url = swiftDataStoreURL?.deletingLastPathComponent() else { return }
-        NSWorkspace.shared.open(url)
-    }
-
-    private func openSwiftDataFile() {
-        guard let url = swiftDataStoreURL else { return }
-        NSWorkspace.shared.open(url)
-    }
-
-    private func copySwiftDataPath() {
-        guard let path = swiftDataStorePath else { return }
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(path, forType: .string)
-    }
+    // SwiftData 路径展示已移至监控与诊断页面
 
     @MainActor
     private func checkForUpdates(showNoUpdateAlert: Bool) async {

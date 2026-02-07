@@ -96,6 +96,7 @@ struct ContentView: View {
         }
         .onAppear { // 初始化列显示
             updateColumnVisibility(for: sidebarSelection) // 更新列显示
+            NSApp.windows.forEach { $0.isReleasedWhenClosed = false }
         }
         .onChange(of: sidebarSelection) { newValue in // 监听切换
             updateColumnVisibility(for: newValue) // 更新列显示

@@ -5,6 +5,7 @@ import CoreGraphics // 使用桌面窗口层级
 // VideoWallpaperService：管理视频壁纸的桌面播放
 final class VideoWallpaperService {
     static let shared = VideoWallpaperService() // 单例实例
+    static let stateDidChange = Notification.Name("VideoWallpaperService.stateDidChange")
 
     // Entry：记录每个屏幕的窗口与播放器
     struct Entry {
@@ -22,6 +23,7 @@ final class VideoWallpaperService {
     private var powerObserver: Any? // 低电模式监听
     private var visibilityTimer: DispatchSourceTimer? // 可见性轮询
     private var pausedForPower = false // 是否因省电暂停
+    private var manualPaused = false // 是否手动暂停
     private var isReapplying = false // 防止重复重建
 
     private init() { // 禁止外部初始化
@@ -91,6 +93,7 @@ final class VideoWallpaperService {
             entries[key] = Entry(window: window, player: player, endObserver: endObserver) // 保存条目
             LogCenter.log("[视频壁纸] 已启动屏幕：\(screen.localizedName) | id=\(screenIdentifier(screen))") // 关键步骤日志
         }
+        notifyStateChange()
     }
 
     // stopAll：停止所有视频壁纸
@@ -109,6 +112,8 @@ final class VideoWallpaperService {
         stopPowerObserver() // 停止低电监听
         stopVisibilityTimer() // 停止可见性轮询
         pausedForPower = false // 重置省电状态
+        manualPaused = false // 重置手动暂停
+        notifyStateChange()
     }
 
     // makeWindow：创建桌面层窗口
@@ -260,8 +265,37 @@ final class VideoWallpaperService {
             LogCenter.log("[视频壁纸] 因低电/不可见暂停播放，保留静帧节能") // 说明
         } else if !shouldPause && pausedForPower { // 恢复
             pausedForPower = false
-            entries.values.forEach { $0.player.play() }
-            LogCenter.log("[视频壁纸] 退出低电/恢复可见，继续播放视频壁纸") // 说明
+            if !manualPaused {
+                entries.values.forEach { $0.player.play() }
+                LogCenter.log("[视频壁纸] 退出低电/恢复可见，继续播放视频壁纸") // 说明
+            }
+            notifyStateChange()
         }
+    }
+
+    var isActive: Bool { !entries.isEmpty }
+
+    var isPaused: Bool { pausedForPower || manualPaused }
+
+    func pauseAll() {
+        guard !entries.isEmpty else { return }
+        manualPaused = true
+        entries.values.forEach { $0.player.pause() }
+        LogCenter.log("[视频壁纸] 手动暂停视频壁纸")
+        notifyStateChange()
+    }
+
+    func resumeAll() {
+        guard !entries.isEmpty else { return }
+        manualPaused = false
+        if !pausedForPower {
+            entries.values.forEach { $0.player.play() }
+            LogCenter.log("[视频壁纸] 手动恢复视频壁纸")
+        }
+        notifyStateChange()
+    }
+
+    private func notifyStateChange() {
+        NotificationCenter.default.post(name: Self.stateDidChange, object: self)
     }
 }

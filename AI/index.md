@@ -199,4 +199,10 @@ modern Chinese aesthetic, xianxia (immortal) vibe, minimal composition, misty mo
 # 版本自动升级功能
 
  我目前使用的都是github 以及github Releases 详细完成这套流程的方案,输出一个文档,让我审核
+
+
+
+
+# 监控与诊断 
+目前数据内容,每个表的字段似乎没有展示全,要不所有能展示的数据都展示出来
  

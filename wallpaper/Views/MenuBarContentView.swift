@@ -6,6 +6,8 @@ import SwiftData // 使用 SwiftData
 struct MenuBarContentView: View { // 菜单栏视图
     @AppStorage("themeColorHex") private var themeColorHex = ThemeColor.defaultHex // 主题色
     @Environment(\.modelContext) private var modelContext // 数据上下文
+    @State private var videoActive = VideoWallpaperService.shared.isActive // 是否有视频壁纸
+    @State private var videoPaused = VideoWallpaperService.shared.isPaused // 是否暂停
 
     var body: some View { // 视图主体
         VStack(alignment: .leading, spacing: 8) { // 垂直布局
@@ -15,11 +17,18 @@ struct MenuBarContentView: View { // 菜单栏视图
 
             Divider() // 分隔线
 
-            Button("停止视频壁纸") { // 停止视频壁纸
-                MenuBarActions.stopVideoWallpaper() // 停止播放
-            } // 结束按钮
-
-            Divider() // 分隔线
+            if videoActive {
+                if videoPaused {
+                    Button("开始视频壁纸") {
+                        MenuBarActions.resumeVideoWallpaper()
+                    }
+                } else {
+                    Button("暂停视频壁纸") {
+                        MenuBarActions.pauseVideoWallpaper()
+                    }
+                }
+                Divider() // 分隔线
+            }
 
             Button("导入素材") { // 导入素材
                 MenuBarActions.importMedia(in: modelContext) // 打开导入
@@ -34,5 +43,9 @@ struct MenuBarContentView: View { // 菜单栏视图
         .padding(8) // 内边距
         .tint(ThemeColor.color(from: themeColorHex)) // 应用主题色
         .glassPanel(cornerRadius: 12) // 玻璃容器
+        .onReceive(NotificationCenter.default.publisher(for: VideoWallpaperService.stateDidChange)) { _ in
+            videoActive = VideoWallpaperService.shared.isActive
+            videoPaused = VideoWallpaperService.shared.isPaused
+        }
     } // 结束视图主体
 } // 结束视图

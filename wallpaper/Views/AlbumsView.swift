@@ -142,12 +142,12 @@ struct AlbumDetailView: View {
     }
 
     var body: some View { // 主体
-        VStack(alignment: .leading, spacing: 12) { // 垂直布局
+        VStack(alignment: .leading, spacing: 8) { // 垂直布局
             headerBar // 顶部栏
             contentSection // 内容区
         }
-        .padding() // 内边距
-        .padding(.leading, 8) // 与侧栏保持间距
+        .padding(.horizontal, 12) // 水平内边距
+        .padding(.top, 6) // 顶部间距更紧凑
         .sheet(isPresented: $showingAddSheet) { // 添加素材弹窗
             NavigationStack { // 导航
                 GeometryReader { proxy in
@@ -171,12 +171,24 @@ struct AlbumDetailView: View {
                 }
                 .navigationTitle("选择素材") // 标题
                 .toolbar { // 工具栏
-                    Button("取消") { // 取消
-                        showingAddSheet = false // 关闭
-                    }
-                    Button("添加") { // 添加
-                        addSelectedItems() // 添加
-                        showingAddSheet = false // 关闭
+                    ToolbarItemGroup(placement: .automatic) {
+                        Text("已选 \(selectedItemIDs.count)")
+                            .foregroundStyle(.secondary)
+                        Menu("更多") {
+                            Button("全选") {
+                                selectedItemIDs = Set(allItems.map { $0.id })
+                            }
+                            Button("清空选择") {
+                                selectedItemIDs.removeAll()
+                            }
+                        }
+                        Button("取消") { // 取消
+                            showingAddSheet = false // 关闭
+                        }
+                        Button("添加") { // 添加
+                            addSelectedItems() // 添加
+                            showingAddSheet = false // 关闭
+                        }
                     }
                 }
             }

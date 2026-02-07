@@ -5,6 +5,7 @@ import SwiftData // SwiftData 框架
 // wallpaperApp：应用入口，配置 SwiftData 容器并启动界面
 @main
 struct wallpaperApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @AppStorage("menuBarEnabled") private var menuBarEnabled = false // 菜单栏开关
     @AppStorage("dockIconHidden") private var dockIconHidden = false // Dock 图标隐藏
     @AppStorage("themeColorHex") private var themeColorHex = ThemeColor.defaultHex // 主题色
@@ -74,6 +75,70 @@ struct wallpaperApp: App {
         let policy: NSApplication.ActivationPolicy = hidden ? .accessory : .regular
         if NSApp.activationPolicy() != policy {
             NSApp.setActivationPolicy(policy)
+        }
+    }
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+    private var observed = Set<ObjectIdentifier>()
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        WindowManager.showMainWindow()
+        return true
+    }
+
+    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        // 防止 Dock 点击时 SwiftUI 自动创建新窗口
+        return false
+    }
+
+    func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        // 避免重复创建窗口
+        return false
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        attachWindowDelegates()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowBecameKey(_:)),
+            name: NSWindow.didBecomeKeyNotification,
+            object: nil
+        )
+    }
+
+    @objc private func windowBecameKey(_ notification: Notification) {
+        attachWindowDelegates()
+    }
+
+    private func attachWindowDelegates() {
+        for window in NSApp.windows {
+            let id = ObjectIdentifier(window)
+            guard !observed.contains(id) else { continue }
+            window.delegate = self
+            observed.insert(id)
+        }
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if sender.title == WindowManager.diagnosticsTitle {
+            return true
+        }
+        let alert = NSAlert()
+        alert.messageText = "关闭窗口？"
+        alert.informativeText = "你可以关闭窗口，或隐藏到菜单栏保持后台运行。"
+        alert.addButton(withTitle: "隐藏到菜单栏")
+        alert.addButton(withTitle: "关闭窗口")
+        alert.addButton(withTitle: "取消")
+        let response = alert.runModal()
+        switch response {
+        case .alertFirstButtonReturn:
+            sender.orderOut(nil)
+            return false
+        case .alertSecondButtonReturn:
+            return true
+        default:
+            return false
         }
     }
 }
