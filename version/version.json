@@ -1,11 +1,11 @@
 {
   "latest": {
-    "version": "1.2.2",
+    "version": "1.2.3",
     "build": 10300,
-    "title": "1.2.2 发布",
-    "notes": "- 1.2.2 版本的修复和改进\n- 新增功能预告\n- 性能优化",
+    "title": "1.2.3 发布",
+    "notes": "- 1.2.3 版本的修复和改进\n- 新增功能预告\n- 性能优化",
     "pub_date": "2026-02-07",
-    "download_url": "https://github.com/Idea-flow/wallpaper/releases/download/v1.2.2/wallpaper-1.2.2.dmg",
+    "download_url": "https://github.com/Idea-flow/wallpaper/releases/download/v1.2.3/wallpaper-1.2.3.dmg",
     "size_bytes": 123456789,
     "sha256": ""
   },
