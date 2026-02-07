@@ -5,9 +5,9 @@
     "title": "1.3.0 发布",
     "notes": "- 新增 Bing 壁纸双栏布局\n- 优化菜单栏导入\n- 新增 Dock 图标隐藏",
     "pub_date": "2026-02-07",
-    "download_url": "https://github.com/<owner>/<repo>/releases/download/v1.3.0/Wallpaper-1.3.0.dmg",
+    "download_url": "https://github.com/Idea-flow/wallpaper/releases/download/artifact-14/wallpaper.dmg",
     "size_bytes": 123456789,
-    "sha256": "<可选哈希>"
+    "sha256": ""
   },
   "minimum": {
     "version": "1.2.0",

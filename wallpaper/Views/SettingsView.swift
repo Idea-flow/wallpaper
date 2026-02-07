@@ -6,7 +6,7 @@ struct SettingsView: View {
     @AppStorage("menuBarEnabled") private var menuBarEnabled = false // 菜单栏
     @AppStorage("dockIconHidden") private var dockIconHidden = false // Dock 图标隐藏
     @AppStorage("autoCheckUpdates") private var autoCheckUpdates = true // 自动检查更新
-    @AppStorage("updateFeedURL") private var updateFeedURL = "" // 更新 JSON 地址
+    @AppStorage("updateFeedURL") private var updateFeedURL = "https://raw.githubusercontent.com/Idea-flow/wallpaper/refs/heads/main/version/version.json" // 更新 JSON 地址
     @AppStorage("lastUpdateCheck") private var lastUpdateCheck = 0.0 // 上次检查时间
     @AppStorage("reduceVideoPower") private var reduceVideoPower = true // 低功耗
     @AppStorage("pauseVideoWhenLowPower") private var pauseVideoWhenLowPower = true // 低电/遮挡暂停
@@ -19,6 +19,8 @@ struct SettingsView: View {
     @StateObject private var perfMonitor = PerformanceMonitor() // 性能监控
     @AppStorage("performanceMonitorEnabled") private var performanceMonitorEnabled = false // 性能监控开关
     @State private var isCheckingUpdate = false // 更新检查中
+    @State private var isDownloadingUpdate = false // 下载中
+    @State private var downloadProgress: Double = 0 // 下载进度
     @State private var updateAlert: UpdateAlertItem? // 更新提示
 
     var body: some View { // 主体
@@ -67,8 +69,11 @@ struct SettingsView: View {
                         HStack {
                             Text("更新地址")
                             Spacer()
-                            Text(updateFeedURL.isEmpty ? "未配置" : "已配置")
+                            Text(updateFeedURL)
                                 .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .textSelection(.enabled)
                         }
                         Text("更新地址使用 GitHub 托管的 JSON 文件。")
                             .font(.caption)
@@ -85,10 +90,19 @@ struct SettingsView: View {
                             }
                         }
                         Button(isCheckingUpdate ? "检查中…" : "检查更新") {
+                            LogCenter.log("[更新] 手动检查更新")
                             Task { await checkForUpdates(showNoUpdateAlert: true) }
                         }
                         .disabled(isCheckingUpdate)
                         .glassCapsuleBackground()
+                        if isDownloadingUpdate {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("下载进度 \(Int(downloadProgress * 100))%")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                ProgressView(value: downloadProgress)
+                            }
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -251,12 +265,12 @@ struct SettingsView: View {
             Text("将清空本地缩略图缓存。") // 提示
         }
         .alert(item: $updateAlert) { alert in
-            if let url = alert.downloadURL {
+            if let release = alert.release {
                 return Alert(
                     title: Text(alert.title),
                     message: Text(alert.message),
                     primaryButton: .default(Text(alert.primaryButton)) {
-                        UpdateService.openDownload(url)
+                        Task { await downloadUpdate(release) }
                     },
                     secondaryButton: .cancel(Text("取消"))
                 )
@@ -327,7 +341,7 @@ struct SettingsView: View {
                 title: "未配置更新地址",
                 message: "请在设置中填写更新 JSON 地址。",
                 primaryButton: "好",
-                downloadURL: nil
+                release: nil
             )
             return
         }
@@ -343,7 +357,7 @@ struct SettingsView: View {
                         title: "已是最新版本",
                         message: "当前已是最新版本。",
                         primaryButton: "好",
-                        downloadURL: nil
+                        release: nil
                     )
                 }
             case .updateAvailable(let release, let isMandatory):
@@ -352,7 +366,7 @@ struct SettingsView: View {
                     title: "发现新版本 \(release.version) \(mandatoryText)",
                     message: release.notes.isEmpty ? "点击下载更新。" : release.notes,
                     primaryButton: "下载更新",
-                    downloadURL: release.downloadURL
+                    release: release
                 )
             }
         } catch {
@@ -360,7 +374,36 @@ struct SettingsView: View {
                 title: "检查失败",
                 message: error.localizedDescription,
                 primaryButton: "好",
-                downloadURL: nil
+                release: nil
+            )
+        }
+    }
+
+    @MainActor
+    private func downloadUpdate(_ release: UpdateService.UpdateRelease) async {
+        guard !isDownloadingUpdate else { return }
+        isDownloadingUpdate = true
+        downloadProgress = 0
+        defer { isDownloadingUpdate = false }
+        LogCenter.log("[更新] 开始后台下载更新包")
+        let result = await UpdateService.downloadUpdate(release) { value in
+            downloadProgress = value
+        }
+        switch result {
+        case .success(let fileURL):
+            UpdateService.revealInFinder(fileURL)
+            updateAlert = UpdateAlertItem(
+                title: "下载完成",
+                message: "已下载更新包，可在 Finder 中手动替换应用。",
+                primaryButton: "好",
+                release: nil
+            )
+        case .failure(let error):
+            updateAlert = UpdateAlertItem(
+                title: "下载失败",
+                message: error.localizedDescription,
+                primaryButton: "好",
+                release: nil
             )
         }
     }
@@ -433,7 +476,7 @@ private struct UpdateAlertItem: Identifiable {
     let title: String
     let message: String
     let primaryButton: String
-    let downloadURL: URL?
+    let release: UpdateService.UpdateRelease?
 }
 
 extension SettingsView {

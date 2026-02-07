@@ -70,6 +70,8 @@ struct ContentView: View {
     @AppStorage("updateFeedURL") private var updateFeedURL = "" // 更新 JSON 地址
     @AppStorage("lastUpdateCheck") private var lastUpdateCheck = 0.0 // 上次检查时间
     @State private var updateAlert: UpdateAlertItem? // 更新提示
+    @State private var isDownloadingUpdate = false // 下载中
+    @State private var downloadProgress: Double = 0 // 下载进度
     @State private var didAutoCheckUpdate = false // 防止重复检查
     @Environment(\.colorScheme) private var colorScheme // 亮/暗模式
 
@@ -116,12 +118,12 @@ struct ContentView: View {
             Text(alertMessage ?? "") // 显示提示内容
         }
         .alert(item: $updateAlert) { alert in
-            if let url = alert.downloadURL {
+            if let release = alert.release {
                 return Alert(
                     title: Text(alert.title),
                     message: Text(alert.message),
                     primaryButton: .default(Text(alert.primaryButton)) {
-                        UpdateService.openDownload(url)
+                        Task { await downloadUpdate(release) }
                     },
                     secondaryButton: .cancel(Text("取消"))
                 )
@@ -131,6 +133,21 @@ struct ContentView: View {
                 message: Text(alert.message),
                 dismissButton: .default(Text("好"))
             )
+        }
+        .overlay(alignment: .top) {
+            if isDownloadingUpdate {
+                HStack(spacing: 12) {
+                    ProgressView(value: downloadProgress)
+                        .frame(width: 180)
+                    Text("下载更新 \(Int(downloadProgress * 100))%")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .glassPanel(cornerRadius: 14)
+                .padding(.top, 12)
+            }
         }
     }
 
@@ -387,11 +404,40 @@ struct ContentView: View {
                     title: "发现新版本 \(release.version) \(mandatoryText)",
                     message: release.notes.isEmpty ? "点击下载更新。" : release.notes,
                     primaryButton: "下载更新",
-                    downloadURL: release.downloadURL
+                    release: release
                 )
             }
         } catch {
             LogCenter.log("[更新] 自动检查失败：\(error.localizedDescription)", level: .warning)
+        }
+    }
+
+    @MainActor
+    private func downloadUpdate(_ release: UpdateService.UpdateRelease) async {
+        guard !isDownloadingUpdate else { return }
+        isDownloadingUpdate = true
+        downloadProgress = 0
+        defer { isDownloadingUpdate = false }
+        LogCenter.log("[更新] 开始后台下载更新包")
+        let result = await UpdateService.downloadUpdate(release) { value in
+            downloadProgress = value
+        }
+        switch result {
+        case .success(let fileURL):
+            UpdateService.revealInFinder(fileURL)
+            updateAlert = UpdateAlertItem(
+                title: "下载完成",
+                message: "已下载更新包，可在 Finder 中手动替换应用。",
+                primaryButton: "好",
+                release: nil
+            )
+        case .failure(let error):
+            updateAlert = UpdateAlertItem(
+                title: "下载失败",
+                message: error.localizedDescription,
+                primaryButton: "好",
+                release: nil
+            )
         }
     }
 }
@@ -401,7 +447,7 @@ private struct UpdateAlertItem: Identifiable {
     let title: String
     let message: String
     let primaryButton: String
-    let downloadURL: URL?
+    let release: UpdateService.UpdateRelease?
 }
 
 // MediaRow：素材列表行
