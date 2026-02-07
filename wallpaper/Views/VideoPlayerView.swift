@@ -39,7 +39,10 @@ struct VideoPlayerView: NSViewRepresentable {
         }
 
         deinit { // 释放时停止安全访问
-            accessToken.stopAccess() // 停止安全访问
+            let token = accessToken // 复制令牌
+            Task { @MainActor in // 切回主线程
+                token.stopAccess() // 停止安全访问
+            }
         }
     }
 

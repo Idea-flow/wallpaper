@@ -11,6 +11,9 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    env:
+      APP_NAME: "wallpaper"
+      APP_VERSION: "1.2.1"
 
     steps:
       - name: Checkout
@@ -38,6 +41,7 @@ jobs:
       - name: Create DMG
         run: |
           APP_NAME="wallpaper"
+          APP_VERSION="${{ env.APP_VERSION }}"
           APP_PATH="build/Build/Products/Release/${APP_NAME}.app"
           if [ ! -d "$APP_PATH" ]; then
             echo "App not found at $APP_PATH"
@@ -76,11 +80,12 @@ jobs:
           chmod +x "$FIX_CMD"
 
           # Detach and convert to compressed DMG
+          FINAL_DMG="${APP_NAME}-${APP_VERSION}.dmg"
           hdiutil detach "$MOUNT_POINT"
-          hdiutil convert "$DMG_TMP" -format UDZO -imagekey zlib-level=9 -o "${APP_NAME}.dmg"
+          hdiutil convert "$DMG_TMP" -format UDZO -imagekey zlib-level=9 -o "$FINAL_DMG"
           rm -f "$DMG_TMP"
 
-          echo "Created ${APP_NAME}.dmg"
+          echo "Created ${FINAL_DMG}"
 
       - name: Create GitHub Release
         id: create_release
@@ -88,10 +93,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # Use a run-specific tag to avoid clobbering existing releases
-          tag_name: "artifact-${{ github.run_number }}"
-          release_name: "artifact-${{ github.run_number }}"
-          body: "Automated release for run ${{ github.run_id }} (artifact wallpaper.dmg)"
+          tag_name: "v${{ env.APP_VERSION }}"
+          release_name: "${{ env.APP_NAME }} ${{ env.APP_VERSION }}"
+          body: "Automated release for ${{ env.APP_NAME }} v${{ env.APP_VERSION }} (artifact ${{ env.APP_NAME }}-${{ env.APP_VERSION }}.dmg)"
           draft: false
           prerelease: false
 
@@ -102,8 +106,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: wallpaper.dmg
-          asset_name: wallpaper.dmg
+          asset_path: ${{ env.APP_NAME }}-${{ env.APP_VERSION }}.dmg
+          asset_name: ${{ env.APP_NAME }}-${{ env.APP_VERSION }}.dmg
           asset_content_type: application/octet-stream
 
       - name: Print Release asset download URL
@@ -112,4 +116,4 @@ jobs:
           echo "Release 标签: ${{ steps.create_release.outputs.tag_name }}"
           echo "资产浏览下载 URL: ${{ steps.upload_release_asset.outputs.browser_download_url }}"
           echo "在浏览器中打开上述 URL 可直接下载；若使用 curl，可运行："
-          echo "curl -L -o wallpaper.dmg \"${{ steps.upload_release_asset.outputs.browser_download_url }}\""
+          echo "curl -L -o ${{ env.APP_NAME }}-${{ env.APP_VERSION }}.dmg \"${{ steps.upload_release_asset.outputs.browser_download_url }}\""

@@ -86,6 +86,13 @@ enum UpdateService {
 
     static func downloadUpdate(_ release: UpdateRelease, progress: @escaping (Double) -> Void) async -> DownloadResult {
         LogCenter.log("[更新] 开始下载更新包：\(release.downloadURL.absoluteString)")
+        let downloadDir: URL
+        do {
+            downloadDir = try await resolveDownloadDirectory()
+        } catch {
+            LogCenter.log("[更新] 获取下载目录失败：\(error.localizedDescription)", level: .error)
+            return .failure(error)
+        }
         let delegate = DownloadDelegate()
         let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
         let task = session.downloadTask(with: release.downloadURL)
@@ -101,12 +108,14 @@ enum UpdateService {
                     case .success(let tempURL):
                         do {
                             let fileName = release.downloadURL.lastPathComponent
-                            let target = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+                            let didAccess = downloadDir.startAccessingSecurityScopedResource()
+                            defer { if didAccess { downloadDir.stopAccessingSecurityScopedResource() } }
+                            let target = downloadDir.appendingPathComponent(fileName)
                             if FileManager.default.fileExists(atPath: target.path) {
                                 try? FileManager.default.removeItem(at: target)
                             }
                             try FileManager.default.moveItem(at: tempURL, to: target)
-                            LogCenter.log("[更新] 下载完成：\(target.lastPathComponent)")
+                            LogCenter.log("[更新] 下载完成：\(target.path)")
                             continuation.resume(returning: .success(fileURL: target))
                         } catch {
                             LogCenter.log("[更新] 保存下载文件失败：\(error.localizedDescription)", level: .error)
@@ -122,8 +131,8 @@ enum UpdateService {
     }
 
     static func revealInFinder(_ url: URL) {
-        LogCenter.log("[更新] 在 Finder 中显示：\(url.lastPathComponent)")
-        NSWorkspace.shared.activateFileViewerSelecting([url])
+        LogCenter.log("[更新] 打开下载文件夹：\(url.deletingLastPathComponent().path)")
+        NSWorkspace.shared.open(url.deletingLastPathComponent())
     }
 
     static func currentVersionString() -> String {
@@ -146,6 +155,32 @@ enum UpdateService {
             if l > r { return .orderedDescending }
         }
         return .orderedSame
+    }
+
+    private static func resolveDownloadDirectory() async throws -> URL {
+        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+        if let downloads, FileManager.default.isWritableFile(atPath: downloads.path) {
+            LogCenter.log("[更新] 使用下载文件夹：\(downloads.path)")
+            return downloads
+        }
+        LogCenter.log("[更新] 下载文件夹无权限，申请用户授权", level: .warning)
+        return try await requestDownloadDirectory(defaultURL: downloads)
+    }
+
+    @MainActor
+    private static func requestDownloadDirectory(defaultURL: URL?) throws -> URL {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = defaultURL
+        panel.message = "需要访问“下载”文件夹以保存更新包，请选择下载文件夹。"
+        let result = panel.runModal()
+        if result == .OK, let url = panel.url {
+            LogCenter.log("[更新] 用户授权下载目录：\(url.path)")
+            return url
+        }
+        throw NSError(domain: "UpdateService", code: 3, userInfo: [NSLocalizedDescriptionKey: "用户取消选择下载目录"])
     }
 }
 
