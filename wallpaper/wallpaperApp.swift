@@ -52,6 +52,11 @@ struct wallpaperApp: App {
             MenuBarContentView() // 菜单栏内容
         }
         .modelContainer(sharedModelContainer) // 注入同一数据容器
+
+        WindowGroup("监控与诊断", id: "diagnostics") {
+            DiagnosticsView()
+        }
+        .modelContainer(sharedModelContainer)
     }
 
     private var preferredScheme: ColorScheme? { // 主题模式映射

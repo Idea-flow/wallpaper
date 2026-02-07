@@ -23,10 +23,12 @@ struct SettingsView: View {
     @State private var isDownloadingUpdate = false // 下载中
     @State private var downloadProgress: Double = 0 // 下载进度
     @State private var updateAlert: UpdateAlertItem? // 更新提示
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View { // 主体
-        ScrollView {
-            VStack(spacing: 20) {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
                 // 系统设置
                 GlassSection(title: "系统偏好") {
                     capsuleToggle(
@@ -152,6 +154,10 @@ struct SettingsView: View {
                                 .glassCapsuleBackground()
                             }
                         }
+                        Button("监控与诊断") {
+                            openWindow(id: "diagnostics")
+                        }
+                        .glassCapsuleBackground()
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -267,10 +273,11 @@ struct SettingsView: View {
 //                             .padding(.top, 4)
 //                     }
                 }
+                }
+                .padding()
             }
-            .padding()
+            .background(Color.clear)
         }
-        .background(Color.clear)
         .onAppear { // 进入时同步状态
             autoLaunchEnabled = AutoLaunchService.isEnabled() // 同步开机自启
             if performanceMonitorEnabled { perfMonitor.start() } // 按开关启动监控

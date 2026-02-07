@@ -9,13 +9,22 @@ struct LogsView: View { // 日志视图
     @State private var isExporting = false // 导出面板
     @State private var exportText = "" // 导出文本
     @State private var exportName = "wallpaper-logs" // 默认文件名
+    let showsHeader: Bool
+    let embedded: Bool
+
+    init(showsHeader: Bool = true, embedded: Bool = false) {
+        self.showsHeader = showsHeader
+        self.embedded = embedded
+    }
 
     var body: some View { // 主体
         VStack(spacing: 12) { // 垂直布局
-            header // 顶部工具区
+            if showsHeader {
+                header // 顶部工具区
+            }
             logList // 日志列表
         }
-        .padding() // 内边距
+        .padding(embedded ? 0 : 12) // 内边距
         .fileExporter( // 导出文件
             isPresented: $isExporting, // 是否显示
             document: TextDocument(text: exportText), // 文档
