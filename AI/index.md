@@ -194,3 +194,8 @@ modern Chinese aesthetic, xianxia (immortal) vibe, minimal composition, misty mo
         }
         }
         根据这个两栏布局, 三栏布局的方式 让Bing壁纸这个菜单变成两栏布局,Bing壁纸的详情页改成右键有个预览,打开窗口预览,模块化页面,并把现有的布局方式给删除
+
+
+# 版本自动升级功能
+
+ 

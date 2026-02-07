@@ -82,8 +82,19 @@ final class BingWallpaperStore { // 状态类
 
     // makeFileName：生成文件名
     private func makeFileName(for item: BingWallpaperItem, usedUHD: Bool) -> String { // 文件名
-        let base = item.id.replacingOccurrences(of: "/", with: "_") // 清理字符
+        let title = safeFileNameBase(from: item.displayTitle) // 可读标题
         let suffix = usedUHD ? "4k" : "1080" // 分辨率后缀
-        return "bing_\(base)_\(suffix).jpg" // 文件名
+        return "\(title)_\(item.startDate)_\(suffix).jpg" // 文件名
+    }
+
+    private func safeFileNameBase(from title: String) -> String { // 清理文件名
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return "Bing壁纸" }
+        return trimmed
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+            .replacingOccurrences(of: "\t", with: " ")
     }
 }
