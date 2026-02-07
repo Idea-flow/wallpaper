@@ -62,6 +62,7 @@ struct LibraryView: View {
                     }
                     .scrollIndicators(.hidden)
                     .frame(width: geometry.size.width, height: geometry.size.height)
+                    .background(libraryCardBackground)
                 }
                 .background(Color.clear) // 确保背景透明以透出 Liquid Glass 效果
             } else { // 列表模式
@@ -75,6 +76,8 @@ struct LibraryView: View {
                 .scrollContentBackground(.hidden)
                 .background(Color.clear)
                 .scrollIndicators(.hidden)
+                .padding(8)
+                .background(libraryCardBackground)
             }
         }
         .animation(Glass.animation, value: selectionIDs)
@@ -255,6 +258,18 @@ struct LibraryView: View {
         let usableWidth = max(width - 32, cardMinWidth)
         let count = max(Int(usableWidth / cardMinWidth), 1)
         return Array(repeating: GridItem(.flexible(), spacing: 16), count: count)
+    }
+
+    private var libraryCardBackground: some View { // 内容卡片背景
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(Color.clear)
+            .glassPanel(cornerRadius: 16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(.white.opacity(0.18), lineWidth: 0.6)
+            )
+            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+            .padding(12)
     }
 
     private func deleteItem(_ item: MediaItem) { // 删除素材与文件

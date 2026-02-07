@@ -1,3 +1,4 @@
+import AppKit // AppKit
 import SwiftUI // SwiftUI 框架
 import SwiftData // SwiftData 框架
 
@@ -5,6 +6,7 @@ import SwiftData // SwiftData 框架
 @main
 struct wallpaperApp: App {
     @AppStorage("menuBarEnabled") private var menuBarEnabled = false // 菜单栏开关
+    @AppStorage("dockIconHidden") private var dockIconHidden = false // Dock 图标隐藏
     @AppStorage("themeColorHex") private var themeColorHex = ThemeColor.defaultHex // 主题色
     @AppStorage("themeMode") private var themeMode = "system" // 主题模式
     @State private var rulesStarted = false // 规则调度是否启动
@@ -37,6 +39,12 @@ struct wallpaperApp: App {
                         rulesStarted = true // 标记启动
                     }
                 }
+                .onAppear { // 同步 Dock 图标状态
+                    setDockIconHidden(dockIconHidden)
+                }
+                .onChange(of: dockIconHidden) { _, newValue in
+                    setDockIconHidden(newValue)
+                }
         }
         .modelContainer(sharedModelContainer) // 注入数据容器
 
@@ -54,6 +62,13 @@ struct wallpaperApp: App {
             return .dark // 暗黑
         default:
             return nil // 跟随系统
+        }
+    }
+
+    private func setDockIconHidden(_ hidden: Bool) {
+        let policy: NSApplication.ActivationPolicy = hidden ? .accessory : .regular
+        if NSApp.activationPolicy() != policy {
+            NSApp.setActivationPolicy(policy)
         }
     }
 }

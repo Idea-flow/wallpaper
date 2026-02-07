@@ -4,6 +4,7 @@ import SwiftUI // SwiftUI 界面
 struct SettingsView: View {
     @AppStorage("autoLaunchEnabled") private var autoLaunchEnabled = false // 开机自启
     @AppStorage("menuBarEnabled") private var menuBarEnabled = false // 菜单栏
+    @AppStorage("dockIconHidden") private var dockIconHidden = false // Dock 图标隐藏
     @AppStorage("reduceVideoPower") private var reduceVideoPower = true // 低功耗
     @AppStorage("pauseVideoWhenLowPower") private var pauseVideoWhenLowPower = true // 低电/遮挡暂停
     @AppStorage("themeColorHex") private var themeColorHex = ThemeColor.defaultHex // 主题色
@@ -30,7 +31,23 @@ struct SettingsView: View {
                         )
                     )
                     Divider().background(.white.opacity(0.1))
-                    capsuleToggle(title: "显示菜单栏图标", isOn: $menuBarEnabled)
+                    capsuleToggle(title: "Dock 无图标", isOn: Binding(
+                        get: { dockIconHidden },
+                        set: { newValue in
+                            dockIconHidden = newValue
+                            if newValue { menuBarEnabled = true }
+                        }
+                    ))
+                    Text("开启后应用在 Dock 中不显示图标。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    capsuleToggle(title: "显示菜单栏图标", isOn: Binding(
+                        get: { menuBarEnabled },
+                        set: { newValue in
+                            if dockIconHidden && !newValue { return }
+                            menuBarEnabled = newValue
+                        }
+                    ))
                 }
 
                 // 性能设置
