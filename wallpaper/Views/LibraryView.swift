@@ -138,18 +138,18 @@ struct LibraryView: View {
                 Button { // 仅图片
                     filterType = .image // 过滤图片
                 } label: {
-                    filterMenuLabel("仅图片", selected: filterType == .image) // 文案
+                    filterMenuLabel("图片", selected: filterType == .image) // 文案
                 }
                 Button { // 仅视频
                     filterType = .video // 过滤视频
                 } label: {
-                    filterMenuLabel("仅视频", selected: filterType == .video) // 文案
+                    filterMenuLabel("视频", selected: filterType == .video) // 文案
                 }
                 Divider() // 分隔线
                 Button { // 仅收藏
                     showFavoritesOnly.toggle() // 切换收藏过滤
                 } label: {
-                    filterMenuLabel("仅收藏", selected: showFavoritesOnly) // 文案
+                    filterMenuLabel("收藏", selected: showFavoritesOnly) // 文案
                 }
             } label: {
                 Label("筛选", systemImage: "line.3.horizontal.decrease.circle") // 图标
