@@ -12,11 +12,19 @@ struct BingWallpapersView: View { // Bing 列表视图
     ]
 
     var body: some View { // 主体
-        VStack(spacing: 12) { // 垂直布局
-            toolbar // 顶部工具
-            content // 内容区
+        ScrollView { // 滚动容器
+            VStack(spacing: 20) { // 垂直布局
+                GlassSection(title: "Bing 壁纸") { // 顶部设置区
+                    toolbar // 顶部工具
+                }
+                GlassSection(title: "壁纸列表") { // 列表区
+                    content // 内容区
+                }
+            }
+            .padding() // 内边距
         }
-        .padding() // 内边距
+        .scrollIndicators(.hidden) // 隐藏滚动条
+        .background(Color.clear) // 透明背景
         .task(id: taskKey) { // 自动拉取
             await store.load() // 拉取数据
         }
@@ -27,48 +35,56 @@ struct BingWallpapersView: View { // Bing 列表视图
     }
 
     private var toolbar: some View { // 顶部工具栏
-        HStack(spacing: 12) { // 横向布局
-            Picker("地区", selection: $store.market) { // 市场选择
-                ForEach(store.markets) { option in // 遍历市场
-                    Text(option.name).tag(option.id) // 选项
+        VStack(alignment: .leading, spacing: 12) { // 垂直布局
+            HStack(spacing: 12) { // 第一行
+                Picker("地区", selection: $store.market) { // 市场选择
+                    ForEach(store.markets) { option in // 遍历市场
+                        Text(option.name).tag(option.id) // 选项
+                    }
+                }
+                .pickerStyle(.menu) // 菜单样式
+
+                Spacer() // 占位
+
+                HStack(spacing: 8) { // 日期控制
+                    Button { // 前一天
+                        if store.dayIndex < 15 { store.dayIndex += 1 } // 向前
+                    } label: {
+                        Image(systemName: "chevron.left") // 图标
+                    }
+                    .disabled(store.dayIndex >= 15) // 超过上限
+
+                    Text(store.dayLabel) // 日期标签
+                        .font(.subheadline) // 字号
+                        .foregroundStyle(.secondary) // 次级色
+
+                    Button { // 后一天
+                        if store.dayIndex > 0 { store.dayIndex -= 1 } // 向后
+                    } label: {
+                        Image(systemName: "chevron.right") // 图标
+                    }
+                    .disabled(store.dayIndex == 0) // 今天禁用
                 }
             }
-            .pickerStyle(.menu) // 菜单样式
 
-            Button { // 前一天
-                if store.dayIndex < 15 { store.dayIndex += 1 } // 向前
-            } label: {
-                Label("上一天", systemImage: "chevron.left") // 文案
-            }
-            .disabled(store.dayIndex >= 15) // 超过上限
+            HStack(spacing: 12) { // 第二行
+                Picker("数量", selection: $store.count) { // 数量选择
+                    Text("4 张").tag(4) // 4 张
+                    Text("8 张").tag(8) // 8 张
+                }
+                .pickerStyle(.segmented) // 分段样式
+                .frame(width: 140) // 固定宽度
 
-            Text(store.dayLabel) // 日期标签
-                .font(.subheadline) // 字号
-                .foregroundStyle(.secondary) // 次级色
+                Toggle("优先 4K", isOn: $store.preferUHD) // 4K 开关
+                    .toggleStyle(.switch) // 开关样式
 
-            Button { // 后一天
-                if store.dayIndex > 0 { store.dayIndex -= 1 } // 向后
-            } label: {
-                Label("下一天", systemImage: "chevron.right") // 文案
-            }
-            .disabled(store.dayIndex == 0) // 今天禁用
+                Spacer() // 占位
 
-            Picker("数量", selection: $store.count) { // 数量选择
-                Text("4 张").tag(4) // 4 张
-                Text("8 张").tag(8) // 8 张
-            }
-            .pickerStyle(.segmented) // 分段样式
-            .frame(width: 140) // 固定宽度
-
-            Toggle("4K", isOn: $store.preferUHD) // 4K 开关
-                .toggleStyle(.switch) // 开关样式
-
-            Spacer() // 占位
-
-            Button { // 刷新
-                Task { await store.load() } // 重新拉取
-            } label: {
-                Label("刷新", systemImage: "arrow.clockwise") // 文案
+                Button { // 刷新
+                    Task { await store.load() } // 重新拉取
+                } label: {
+                    Label("刷新", systemImage: "arrow.clockwise") // 文案
+                }
             }
         }
     }
@@ -81,7 +97,8 @@ struct BingWallpapersView: View { // Bing 列表视图
                 Text("正在加载 Bing 壁纸...") // 提示
                     .foregroundStyle(.secondary) // 次级色
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity) // 居中
+            .frame(maxWidth: .infinity) // 居中
+            .padding(.vertical, 20) // 上下内边距
         } else if let error = store.errorMessage, store.items.isEmpty { // 错误
             VStack(spacing: 12) { // 错误容器
                 Image(systemName: "exclamationmark.triangle") // 警告图标
@@ -96,34 +113,41 @@ struct BingWallpapersView: View { // Bing 列表视图
                     Task { await store.load() } // 重新拉取
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity) // 居中
+            .frame(maxWidth: .infinity) // 居中
+            .padding(.vertical, 20) // 上下内边距
         } else { // 正常列表
-            ScrollView { // 滚动
-                LazyVGrid(columns: gridColumns, spacing: 16) { // 网格
-                    ForEach(store.items) { item in // 遍历
-                        BingWallpaperCard( // 卡片
-                            item: item, // 数据
-                            isSelected: store.selectedID == item.id, // 选中态
-                            isDownloading: store.downloadingIDs.contains(item.id) // 下载态
-                        ) { // 点击选择
-                            store.selectedID = item.id // 更新选中
+            LazyVGrid(columns: gridColumns, spacing: 16) { // 网格
+                ForEach(store.items) { item in // 遍历
+                    BingWallpaperCard( // 卡片
+                        item: item, // 数据
+                        isSelected: store.selectedID == item.id, // 选中态
+                        isDownloading: store.downloadingIDs.contains(item.id) // 下载态
+                    ) { // 点击选择
+                        store.selectedID = item.id // 更新选中
+                    }
+                    .contextMenu { // 右键菜单
+                        Button("预览") { // 预览
+                            BingPreviewWindowManager.shared.show( // 打开预览窗口
+                                item: item, // 壁纸数据
+                                store: store, // 状态
+                                modelContext: modelContext // 数据上下文
+                            )
+                            LogCenter.log("[Bing] 打开预览窗口：\(item.displayTitle)") // 日志
                         }
-                        .contextMenu { // 右键菜单
-                            Button("保存到素材库") { // 保存
-                                Task { // 异步
-                                    await store.downloadToLibrary(item, modelContext: modelContext) // 下载保存
-                                }
+                        Button("保存到素材库") { // 保存
+                            Task { // 异步
+                                await store.downloadToLibrary(item, modelContext: modelContext) // 下载保存
                             }
-                            if let link = item.copyrightLink { // 版权链接
-                                Button("打开版权链接") { // 打开链接
-                                    NSWorkspace.shared.open(link) // 打开浏览器
-                                }
+                        }
+                        if let link = item.copyrightLink { // 版权链接
+                            Button("打开版权链接") { // 打开链接
+                                NSWorkspace.shared.open(link) // 打开浏览器
                             }
                         }
                     }
                 }
-                .padding(.vertical, 4) // 顶部间距
             }
+            .padding(.vertical, 4) // 顶部间距
         }
     }
 }

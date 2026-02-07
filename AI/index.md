@@ -173,3 +173,7 @@ modern Chinese aesthetic, xianxia (immortal) vibe, minimal composition, misty mo
 # bing壁纸功能
     在素材库下面增加一个菜单, bing壁纸
     调用bing壁纸官方的api来显示图片,支持用户预览, 右键可以保存到素材库(即下载),需要4k的壁纸, 规划这个功能的页面,布局,给出规划文档,我来审核一下
+  优化:
+        1,bing壁纸构建的最终完整请求,日志打印出来
+        2.Bing壁纸,跟日志,设置菜单一样,只有左边菜单栏,和内容栏
+        3.内容栏中的卡片,右键支持预览,预览新开一个窗口展示详细信息, 图片需要完美的展示出来

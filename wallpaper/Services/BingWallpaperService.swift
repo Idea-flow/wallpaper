@@ -5,6 +5,7 @@ struct BingWallpaperService { // 服务结构体
     // fetchWallpapers：拉取壁纸列表
     static func fetchWallpapers(market: String, index: Int, count: Int) async throws -> [BingWallpaperItem] { // 拉取方法
         let url = buildArchiveURL(market: market, index: index, count: count) // 构建接口 URL
+        LogCenter.log("[Bing] 请求URL：\(url.absoluteString)") // 记录完整请求
         let (data, response) = try await URLSession.shared.data(from: url) // 请求数据
         guard let http = response as? HTTPURLResponse else { // 校验响应
             throw NSError(domain: "BingWallpaperService", code: 1, userInfo: [NSLocalizedDescriptionKey: "无效的网络响应"]) // 抛出错误
