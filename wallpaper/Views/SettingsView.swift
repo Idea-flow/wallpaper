@@ -12,6 +12,8 @@ struct SettingsView: View {
     @State private var alertMessage: String? // 错误提示
     @State private var showingClearCacheConfirm = false // 清理确认弹窗
     @State private var showingCustomPicker = false // 自定义颜色
+    @StateObject private var perfMonitor = PerformanceMonitor() // 性能监控
+    @AppStorage("performanceMonitorEnabled") private var performanceMonitorEnabled = false // 性能监控开关
 
     var body: some View { // 主体
         ScrollView {
@@ -95,6 +97,44 @@ struct SettingsView: View {
                     }
                 }
 
+                // 性能状态
+                GlassSection(title: "性能状态") {
+                    capsuleToggle(title: "开启性能监控", isOn: $performanceMonitorEnabled)
+                    Text("关闭时不采集数据，开启后每 1 秒刷新一次。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    HStack {
+                        Text("进程 ID")
+                        Spacer()
+                        Text("\(perfMonitor.pid)")
+                            .foregroundStyle(.secondary)
+                    }
+                    HStack {
+                        Text("CPU 占用")
+                        Spacer()
+                        Text(String(format: "%.1f%%", perfMonitor.cpuUsage))
+                            .foregroundStyle(.secondary)
+                    }
+                    HStack {
+                        Text("内存占用")
+                        Spacer()
+                        Text(byteCount(perfMonitor.memoryBytes))
+                            .foregroundStyle(.secondary)
+                    }
+//                     HStack {
+//                         Text("GPU 占用")
+//                         Spacer()
+//                         Text("不可用")
+//                             .foregroundStyle(.secondary)
+//                     }
+//                     HStack {
+//                         Text("耗电量")
+//                         Spacer()
+//                         Text("不可用")
+//                             .foregroundStyle(.secondary)
+//                     }
+                }
+
                 // 说明
                 GlassSection(title: "关于") {
                     Text("Wallpaper Pro Max")
@@ -121,6 +161,17 @@ struct SettingsView: View {
         .background(Color.clear)
         .onAppear { // 进入时同步状态
             autoLaunchEnabled = AutoLaunchService.isEnabled() // 同步开机自启
+            if performanceMonitorEnabled { perfMonitor.start() } // 按开关启动监控
+        }
+        .onDisappear {
+            perfMonitor.stop()
+        }
+        .onChange(of: performanceMonitorEnabled) { _, newValue in
+            if newValue {
+                perfMonitor.start()
+            } else {
+                perfMonitor.stop()
+            }
         }
         .alert("设置失败", isPresented: Binding( // 错误弹窗
             get: { alertMessage != nil }, // 是否显示
@@ -171,6 +222,13 @@ struct SettingsView: View {
         formatter.allowedUnits = [.useKB, .useMB, .useGB] // 单位
         formatter.countStyle = .file // 文件样式
         return formatter.string(fromByteCount: Int64(bytes)) // 返回
+    }
+
+    private func byteCount(_ bytes: UInt64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useMB, .useGB]
+        formatter.countStyle = .memory
+        return formatter.string(fromByteCount: Int64(bytes))
     }
 }
 
