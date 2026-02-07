@@ -58,56 +58,6 @@ struct SettingsView: View {
                     ))
                 }
 
-                // 版本更新
-                GlassSection(title: "版本更新") {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Text("当前版本")
-                            Spacer()
-                            Text("\(UpdateService.currentVersionString()) (\(UpdateService.currentBuildNumber()))")
-                                .foregroundStyle(.secondary)
-                        }
-                        HStack {
-                            Text("更新地址")
-                            Spacer()
-                            Text(updateFeedURL)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                                .textSelection(.enabled)
-                        }
-                        Text("更新地址使用 GitHub 托管的 JSON 文件。")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        TextField("更新 JSON 地址", text: $updateFeedURL)
-                            .textFieldStyle(.roundedBorder)
-                        capsuleToggle(title: "自动检查更新", isOn: $autoCheckUpdates)
-                        if lastUpdateCheck > 0 {
-                            HStack {
-                                Text("上次检查")
-                                Spacer()
-                                Text(lastCheckText)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Button(isCheckingUpdate ? "检查中…" : "检查更新") {
-                            LogCenter.log("[更新] 手动检查更新")
-                            Task { await checkForUpdates(showNoUpdateAlert: true) }
-                        }
-                        .disabled(isCheckingUpdate)
-                        .glassCapsuleBackground()
-                        if isDownloadingUpdate {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("下载进度 \(Int(downloadProgress * 100))%")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                ProgressView(value: downloadProgress)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
                 // 性能设置
                 GlassSection(title: "性能优化") {
                     VStack(alignment: .leading, spacing: 10) {
@@ -172,6 +122,90 @@ struct SettingsView: View {
                     }
                 }
 
+                // 数据存储
+                GlassSection(title: "数据存储") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("SwiftData 数据库")
+                            Spacer()
+                            Text(swiftDataStorePath ?? "未找到")
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .textSelection(.enabled)
+                        }
+                        if swiftDataStorePath != nil {
+                            HStack(spacing: 8) {
+                                Button("打开所在文件夹") {
+                                    openSwiftDataFolder()
+                                }
+                                .glassCapsuleBackground()
+
+                                Button("打开数据库文件") {
+                                    openSwiftDataFile()
+                                }
+                                .glassCapsuleBackground()
+
+                                Button("复制路径") {
+                                    copySwiftDataPath()
+                                }
+                                .glassCapsuleBackground()
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                // 版本更新
+                GlassSection(title: "版本更新") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("当前版本")
+                            Spacer()
+                            Text("\(UpdateService.currentVersionString())")
+                                .foregroundStyle(.secondary)
+                        }
+                        HStack {
+                            Text("更新地址")
+                            Spacer()
+                            Text(updateFeedURL)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .textSelection(.enabled)
+                        }
+                        Text("更新地址使用 GitHub 托管的 JSON 文件。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        TextField("更新 JSON 地址", text: $updateFeedURL)
+                            .textFieldStyle(.roundedBorder)
+                        capsuleToggle(title: "自动检查更新", isOn: $autoCheckUpdates)
+                        if lastUpdateCheck > 0 {
+                            HStack {
+                                Text("上次检查")
+                                Spacer()
+                                Text(lastCheckText)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Button(isCheckingUpdate ? "检查中…" : "检查更新") {
+                            LogCenter.log("[更新] 手动检查更新")
+                            Task { await checkForUpdates(showNoUpdateAlert: true) }
+                        }
+                        .disabled(isCheckingUpdate)
+                        .glassCapsuleBackground()
+                        if isDownloadingUpdate {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("下载进度 \(Int(downloadProgress * 100))%")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                ProgressView(value: downloadProgress)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
                 // 性能状态
                 GlassSection(title: "性能状态") {
                     capsuleToggle(title: "开启性能监控", isOn: $performanceMonitorEnabled)
@@ -212,9 +246,12 @@ struct SettingsView: View {
 
                 // 说明
                 GlassSection(title: "关于") {
-                    Text("Wallpaper Pro Max")
+                    Text("Wallpaper")
                         .font(.headline)
-                    Text("Version 1.0.0")
+                    Text("Version \(UpdateService.currentVersionString())")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Link("GitHub: https://github.com/Idea-flow/wallpaper", destination: URL(string: "https://github.com/Idea-flow/wallpaper")!)
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
@@ -333,6 +370,40 @@ struct SettingsView: View {
         formatter.locale = Locale(identifier: "zh_CN")
         formatter.dateFormat = "yyyy年M月d日 HH:mm"
         return formatter
+    }
+
+    private var swiftDataStorePath: String? {
+        swiftDataStoreURL?.path
+    }
+
+    private var swiftDataStoreURL: URL? {
+        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        if let contents = try? FileManager.default.contentsOfDirectory(at: appSupport, includingPropertiesForKeys: nil) {
+            if let store = contents.first(where: { $0.pathExtension == "store" }) {
+                return store
+            }
+        }
+        let fallback = appSupport.appendingPathComponent("default.store")
+        return FileManager.default.fileExists(atPath: fallback.path) ? fallback : nil
+    }
+
+    private func openSwiftDataFolder() {
+        guard let url = swiftDataStoreURL?.deletingLastPathComponent() else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    private func openSwiftDataFile() {
+        guard let url = swiftDataStoreURL else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    private func copySwiftDataPath() {
+        guard let path = swiftDataStorePath else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(path, forType: .string)
     }
 
     @MainActor
