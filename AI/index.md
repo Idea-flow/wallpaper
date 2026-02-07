@@ -167,3 +167,9 @@ modern Chinese aesthetic, xianxia (immortal) vibe, minimal composition, misty mo
 1.仅限菜单栏相关文件
 2.显示主窗口,下一张/上一张,停止视频壁纸,导入素材,退出
 3.需要模块化开发,后期好维护一些
+
+
+
+# bing壁纸功能
+    在素材库下面增加一个菜单, bing壁纸
+    调用bing壁纸官方的api来显示图片,支持用户预览, 右键可以保存到素材库(即下载),需要4k的壁纸, 规划这个功能的页面,布局,给出规划文档,我来审核一下

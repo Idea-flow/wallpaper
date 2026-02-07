@@ -10,6 +10,7 @@ struct ContentView: View {
     // SidebarSection：侧栏分类
     enum SidebarSection: String, CaseIterable, Identifiable {
         case library = "素材库" // 素材库
+        case bing = "Bing 壁纸" // Bing 壁纸
         case albums = "相册" // 相册
         case rules = "规则" // 规则
         case settings = "设置" // 设置
@@ -19,11 +20,20 @@ struct ContentView: View {
         var systemImage: String { // 侧栏图标
             switch self { // 根据分类返回图标
             case .library: return "photo.on.rectangle" // 素材库图标
+            case .bing: return "globe.asia.australia" // Bing 图标
             case .albums: return "rectangle.stack" // 相册图标
             case .rules: return "clock.arrow.circlepath" // 规则图标
             case .settings: return "gearshape" // 设置图标
             case .logs: return "doc.text.magnifyingglass" // 日志图标
             }
+        }
+
+        static var librarySections: [SidebarSection] { // 素材库分组
+            [.library, .bing] // 素材库 + Bing
+        }
+
+        static var manageSections: [SidebarSection] { // 管理分组
+            [.albums, .rules, .settings, .logs] // 其他模块
         }
     }
 
@@ -55,6 +65,7 @@ struct ContentView: View {
     @State private var searchText = "" // 搜索文本
     @State private var filterType: MediaType? = nil // 类型筛选
     @State private var showFavoritesOnly = false // 仅收藏
+    @State private var bingStore = BingWallpaperStore() // Bing 壁纸状态
 
     var body: some View { // 主界面
         Group {
@@ -104,23 +115,49 @@ struct ContentView: View {
     private var sidebarList: some View { // 侧栏列表
         Group {
             if sidebarSelectionStyle == "custom" { // 自定义主题色
-                List(SidebarSection.allCases) { section in // 侧栏列表
-                    Button { // 点击切换
-                        sidebarSelection = section // 更新选择
-                    } label: {
-                        sidebarRowLabel(section) // 侧栏行
+                List { // 侧栏列表
+                    Section("素材库") { // 素材库分组
+                        ForEach(SidebarSection.librarySections) { section in // 遍历分组
+                            Button { // 点击切换
+                                sidebarSelection = section // 更新选择
+                            } label: {
+                                sidebarRowLabel(section) // 侧栏行
+                            }
+                            .buttonStyle(.plain)
+                            .listRowBackground(sidebarRowBackground(for: section))
+                            .listRowSeparator(.hidden)
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .listRowBackground(sidebarRowBackground(for: section))
-                    .listRowSeparator(.hidden)
+                    Section("管理") { // 管理分组
+                        ForEach(SidebarSection.manageSections) { section in // 遍历分组
+                            Button { // 点击切换
+                                sidebarSelection = section // 更新选择
+                            } label: {
+                                sidebarRowLabel(section) // 侧栏行
+                            }
+                            .buttonStyle(.plain)
+                            .listRowBackground(sidebarRowBackground(for: section))
+                            .listRowSeparator(.hidden)
+                        }
+                    }
                 }
                 .tint(.clear) // 关闭系统高亮
                 .scrollContentBackground(.hidden)
                 .background(Color.clear)
             } else { // 系统高亮
-                List(SidebarSection.allCases, selection: $sidebarSelection) { section in // 侧栏列表
-                    sidebarRowLabel(section) // 侧栏行
-                        .tag(section) // 绑定选择
+                List(selection: $sidebarSelection) { // 侧栏列表
+                    Section("素材库") { // 素材库分组
+                        ForEach(SidebarSection.librarySections) { section in // 遍历分组
+                            sidebarRowLabel(section) // 侧栏行
+                                .tag(section) // 绑定选择
+                        }
+                    }
+                    Section("管理") { // 管理分组
+                        ForEach(SidebarSection.manageSections) { section in // 遍历分组
+                            sidebarRowLabel(section) // 侧栏行
+                                .tag(section) // 绑定选择
+                        }
+                    }
                 }
                 .tint(.accentColor) // 使用系统高亮
             }
@@ -176,6 +213,9 @@ struct ContentView: View {
                 applyWallpaper(for: item, fitMode: selectedFitMode, screenID: selectedScreenID)
             }
             .navigationSplitViewColumnWidth(min: 300, ideal: 560, max: 760)
+        case .bing:
+            BingWallpapersView(store: bingStore) // Bing 壁纸
+                .navigationSplitViewColumnWidth(min: 300, ideal: 560, max: 760)
         case .albums:
             AlbumsView(selectedAlbumID: $selectedAlbumID) // 相册列表
                 .navigationSplitViewColumnWidth(min: 300, ideal: 560, max: 760)
@@ -217,6 +257,8 @@ struct ContentView: View {
                 } else {
                     ContentUnavailableView("请选择相册", systemImage: "rectangle.stack") // 无选择占位
                 }
+            case .bing:
+                BingWallpaperDetailView(store: bingStore) // Bing 壁纸详情
             case .rules:
                 if let rule = selectedRule { // 有选中规则
                     RuleDetailView(rule: rule, albums: albums) // 规则详情
