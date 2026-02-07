@@ -31,8 +31,9 @@ struct AlbumsView: View {
                         }
                 }
             }
-            .padding()
+            .padding(.vertical, 12)
         }
+        .contentMargins(.horizontal, 16, for: .scrollContent) // 与侧栏保持间距
         .background(Color.clear)
         .toolbar { // 工具栏
             Button { // 新建相册

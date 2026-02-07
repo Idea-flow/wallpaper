@@ -75,15 +75,15 @@ jobs:
               set name of result to "Applications"
             end try
           end tell
-AS
+          AS
 
           # Create a clickable shell command to fix quarantine attributes
           FIX_CMD="$MOUNT_POINT/FixCannotOpen.command"
           cat > "$FIX_CMD" <<'EOF'
-#!/bin/bash
-xattr -cr '/Applications/wallpaper.app'
-osascript -e 'display notification "修复已执行" with title "wallpaper"'
-EOF
+          #!/bin/bash
+          xattr -cr '/Applications/wallpaper.app'
+          osascript -e 'display notification "修复已执行" with title "wallpaper"'
+          EOF
           chmod +x "$FIX_CMD"
 
           # Optional: add a tiny README or hint file (hidden)
@@ -118,7 +118,7 @@ EOF
               update without registering applications
             end tell
           end tell
-AS
+          AS
 
           # Detach and convert to compressed DMG
           hdiutil detach "$MOUNT_POINT"
