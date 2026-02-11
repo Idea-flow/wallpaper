@@ -208,4 +208,4 @@ modern Chinese aesthetic, xianxia (immortal) vibe, minimal composition, misty mo
 
 
 
-bing壁纸列表,展示已图片优先, 名字 日期和介绍 等鼠标移动到
+bing壁纸列表,展示效果图片优先,文字次之 名字 日期和介绍 等鼠标移动到这个图片的时候,在这个图片上展示,突出以图片为主,因为是壁纸软件

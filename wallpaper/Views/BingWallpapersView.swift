@@ -7,13 +7,13 @@ struct BingWallpapersView: View { // Bing 列表视图
     @Environment(\.modelContext) private var modelContext // 数据上下文
     @Bindable var store: BingWallpaperStore // Bing 状态
 
-    private let gridColumns = [ // 网格列
-        GridItem(.adaptive(minimum: 220), spacing: 16) // 自适应列
-    ]
+    private let gridMinWidth: CGFloat = 280 // 卡片最小宽度
+    private let gridSpacing: CGFloat = 20 // 网格间距
+    private let cardHeight: CGFloat = 190 // 卡片高度
 
     var body: some View { // 主体
         ScrollView { // 滚动容器
-            VStack(spacing: 20) { // 垂直布局
+            VStack(spacing: 24) { // 垂直布局
                 GlassSection(title: "Bing 壁纸") { // 顶部设置区
                     toolbar // 顶部工具
                 }
@@ -21,7 +21,8 @@ struct BingWallpapersView: View { // Bing 列表视图
                     content // 内容区
                 }
             }
-            .padding() // 内边距
+            .padding(.horizontal, 20) // 左右内边距
+            .padding(.vertical, 16) // 上下内边距
         }
         .scrollIndicators(.hidden) // 隐藏滚动条
         .background(Color.clear) // 透明背景
@@ -116,11 +117,15 @@ struct BingWallpapersView: View { // Bing 列表视图
             .frame(maxWidth: .infinity) // 居中
             .padding(.vertical, 20) // 上下内边距
         } else { // 正常列表
-            LazyVGrid(columns: gridColumns, spacing: 16) { // 网格
+            LazyVGrid( // 网格
+                columns: [GridItem(.adaptive(minimum: gridMinWidth), spacing: gridSpacing)], // 自适应列
+                spacing: gridSpacing // 行间距
+            ) {
                 ForEach(store.items) { item in // 遍历
                     BingWallpaperCard( // 卡片
                         item: item, // 数据
-                        isDownloading: store.downloadingIDs.contains(item.id) // 下载态
+                        isDownloading: store.downloadingIDs.contains(item.id), // 下载态
+                        height: cardHeight // 高度
                     ) { // 左键预览
                         BingPreviewWindowManager.shared.show( // 打开预览窗口
                             item: item, // 壁纸数据
@@ -151,7 +156,7 @@ struct BingWallpapersView: View { // Bing 列表视图
                     }
                 }
             }
-            .padding(.vertical, 4) // 顶部间距
+            .padding(.vertical, 8) // 顶部间距
         }
     }
 }
@@ -160,66 +165,85 @@ struct BingWallpapersView: View { // Bing 列表视图
 struct BingWallpaperCard: View { // 卡片视图
     let item: BingWallpaperItem // 数据
     let isDownloading: Bool // 下载态
+    let height: CGFloat // 卡片高度
     let onPreview: () -> Void // 点击
+    @State private var isHovering = false // 悬停状态
 
     var body: some View { // 主体
         Button { // 点击
             onPreview() // 触发预览
         } label: {
-            VStack(alignment: .leading, spacing: 8) { // 垂直布局
-                ZStack(alignment: .topTrailing) { // 预览 + 状态
-                    AsyncImage(url: item.fullImageURL) { phase in // 异步图片
-                        switch phase { // 状态分支
-                        case .empty: // 加载中
-                            ZStack { // 占位
-                                Rectangle().fill(.black.opacity(0.06)) // 背景
-                                ProgressView() // 进度
-                            }
-                        case .success(let image): // 成功
-                            image
-                                .resizable() // 可缩放
-                                .scaledToFill() // 填充
-                        case .failure: // 失败
-                            ZStack { // 占位
-                                Rectangle().fill(.black.opacity(0.06)) // 背景
-                                Image(systemName: "photo") // 图标
-                                    .foregroundStyle(.secondary) // 次级色
-                            }
-                        @unknown default:
-                            EmptyView() // 兜底
+            ZStack(alignment: .topTrailing) { // 图片 + 状态
+                AsyncImage(url: item.fullImageURL) { phase in // 异步图片
+                    switch phase { // 状态分支
+                    case .empty: // 加载中
+                        ZStack { // 占位
+                            Rectangle().fill(.black.opacity(0.06)) // 背景
+                            ProgressView() // 进度
                         }
+                    case .success(let image): // 成功
+                        image
+                            .resizable() // 可缩放
+                            .scaledToFill() // 填充
+                    case .failure: // 失败
+                        ZStack { // 占位
+                            Rectangle().fill(.black.opacity(0.06)) // 背景
+                            Image(systemName: "photo") // 图标
+                                .foregroundStyle(.secondary) // 次级色
+                        }
+                    @unknown default:
+                        EmptyView() // 兜底
                     }
-                    .frame(height: 120) // 固定高度
-                    .clipShape(.rect(cornerRadius: 10)) // 圆角
-
-                    if isDownloading { // 下载中
-                        ProgressView() // 进度
-                            .padding(6) // 内边距
+                }
+                .frame(height: height) // 固定高度
+                .clipShape(.rect(cornerRadius: 12)) // 圆角
+                .overlay(alignment: .bottomLeading) { // 悬停文字
+                    if isHovering { // 仅悬停显示
+                        VStack(alignment: .leading, spacing: 6) { // 文本区
+                            Text(item.displayTitle) // 标题
+                                .font(.headline) // 标题字号
+                                .foregroundStyle(.white) // 白色
+                                .lineLimit(1) // 单行
+                            Text(item.displayDate) // 日期
+                                .font(.caption) // 小字
+                                .foregroundStyle(.white.opacity(0.85)) // 次级色
+                            Text(item.copyright) // 版权
+                                .font(.caption2) // 更小字
+                                .foregroundStyle(.white.opacity(0.8)) // 次级色
+                                .lineLimit(1) // 单行
+                        }
+                        .padding(10) // 内边距
+                        .frame(maxWidth: .infinity, alignment: .leading) // 拉伸
+                        .background { // 渐变遮罩
+                            LinearGradient(
+                                colors: [Color.black.opacity(0.65), Color.black.opacity(0.2), Color.clear],
+                                startPoint: .bottom,
+                                endPoint: .top
+                            )
+                        }
+                        .transition(.opacity) // 过渡
                     }
                 }
 
-                Text(item.displayTitle) // 标题
-                    .font(.headline) // 字体
-                    .lineLimit(1) // 单行
-
-                Text(item.displayDate) // 日期
-                    .font(.caption) // 小字
-                    .foregroundStyle(.secondary) // 次级色
-
-                Text(item.copyright) // 版权
-                    .font(.caption2) // 更小字
-                    .foregroundStyle(.secondary) // 次级色
-                    .lineLimit(1) // 单行
+                if isDownloading { // 下载中
+                    ProgressView() // 进度
+                        .padding(6) // 内边距
+                }
             }
             .padding(10) // 内边距
             .background(backgroundStyle) // 背景
             .clipShape(.rect(cornerRadius: 12)) // 圆角
         }
         .buttonStyle(.plain) // 取消默认样式
+        .onHover { hovering in // 悬停触发
+            withAnimation(.easeInOut(duration: 0.15)) { // 动画
+                isHovering = hovering // 更新状态
+            }
+        }
     }
 
     private var backgroundStyle: some View { // 背景样式
         RoundedRectangle(cornerRadius: 12) // 圆角
-            .fill(Color.secondary.opacity(0.08)) // 常规背景
+            .fill(Color.clear) // 透明背景
     }
 }
