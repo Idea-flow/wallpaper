@@ -38,6 +38,7 @@ final class BingPreviewWindowManager: NSObject { // 管理器
             defer: false // 立即创建
         )
         window.title = item.displayTitle // 标题
+        window.identifier = NSUserInterfaceItemIdentifier("bingPreview") // 标记预览窗口
         window.titleVisibility = .hidden // 隐藏标题文本
         window.titlebarAppearsTransparent = true // 透明标题栏
         window.isMovableByWindowBackground = true // 拖动背景移动

@@ -125,6 +125,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if sender.identifier?.rawValue == "bingPreview" { // Bing 预览窗口直接关闭
+            return true
+        }
         if sender.title == WindowManager.diagnosticsTitle {
             return true
         }

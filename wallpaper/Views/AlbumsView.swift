@@ -134,7 +134,9 @@ struct AlbumDetailView: View {
     @State private var viewMode: ViewMode = .grid // 视图模式
 
     // 复用网格配置（宽度自适应）
-    private let gridMinWidth: CGFloat = 180
+    private let gridMinWidth: CGFloat = 200 // 相册卡片最小宽度
+    private let gridSpacing: CGFloat = 16 // 卡片间距
+    private let gridSidePadding: CGFloat = 24 // 左右内边距
 
     private enum ViewMode: String { // 视图模式
         case grid // 网格
@@ -231,9 +233,9 @@ struct AlbumDetailView: View {
             switch viewMode {
             case .grid:
                 GeometryReader { proxy in
-                    let columns = gridColumns(for: proxy.size.width)
+                    let columns = gridColumns(for: proxy.size.width) // 根据宽度计算列数
                     ScrollView {
-                        LazyVGrid(columns: columns, spacing: 16) {
+                        LazyVGrid(columns: columns, spacing: gridSpacing) { // 网格列表
                             ForEach(album.items) { item in
                                 MediaCard(item: item, isSelected: false)
                                     .contextMenu {
@@ -244,6 +246,7 @@ struct AlbumDetailView: View {
                             }
                         }
                         .padding(.vertical, 8)
+                        .padding(.horizontal, gridSidePadding) // 左右留白
                     }
                     .frame(width: proxy.size.width, height: proxy.size.height)
                 }
@@ -299,9 +302,9 @@ struct AlbumDetailView: View {
     }
 
     private func gridColumns(for width: CGFloat) -> [GridItem] { // 自适应列
-        let usableWidth = max(width - 32, gridMinWidth)
-        let count = max(Int(usableWidth / gridMinWidth), 2)
-        return Array(repeating: GridItem(.flexible(), spacing: 16), count: count)
+        let usableWidth = max(width - gridSidePadding * 2, gridMinWidth) // 可用宽度
+        let count = min(max(Int(usableWidth / gridMinWidth), 2), 2) // 最多 2 列
+        return Array(repeating: GridItem(.flexible(), spacing: gridSpacing), count: count) // 返回列
     }
 
 }
