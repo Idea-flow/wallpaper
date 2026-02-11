@@ -10,7 +10,7 @@ struct ContentView: View {
     @AppStorage("sidebarSelectionStyle") private var sidebarSelectionStyle = "custom" // 侧栏选中样式
     // SidebarSection：侧栏分类
     enum SidebarSection: String, CaseIterable, Identifiable {
-        case library = "素材库" // 素材库
+        case library = "我的壁纸" // 我的壁纸
         case bing = "Bing 壁纸" // Bing 壁纸
         case albums = "相册" // 相册
         case rules = "规则" // 规则
@@ -67,6 +67,7 @@ struct ContentView: View {
     @State private var filterType: MediaType? = nil // 类型筛选
     @State private var showFavoritesOnly = false // 仅收藏
     @State private var bingStore = BingWallpaperStore() // Bing 壁纸状态
+    private let albumsColumnWidth: CGFloat = 320 // 相册内容列固定宽度（最小=默认=最大）
     @AppStorage("autoCheckUpdates") private var autoCheckUpdates = true // 自动检查更新
     @AppStorage("updateFeedURL") private var updateFeedURL = "" // 更新 JSON 地址
     @AppStorage("lastUpdateCheck") private var lastUpdateCheck = 0.0 // 上次检查时间
@@ -282,7 +283,11 @@ struct ContentView: View {
             BingWallpapersView(store: bingStore) // Bing 壁纸
         case .albums:
             AlbumsView(selectedAlbumID: $selectedAlbumID) // 相册列表
-                .navigationSplitViewColumnWidth(min: 300, ideal: 560, max: 760)
+                .navigationSplitViewColumnWidth( // 固定相册内容列宽度
+                    min: albumsColumnWidth, // 最小宽度
+                    ideal: albumsColumnWidth, // 默认宽度
+                    max: albumsColumnWidth // 最大宽度
+                )
         case .rules:
             RulesView(selectedRuleID: $selectedRuleID) // 规则列表
         case .settings:
