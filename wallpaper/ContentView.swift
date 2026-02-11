@@ -466,6 +466,12 @@ private struct UpdateAlertItem: Identifiable {
 // MediaRow：素材列表行
 struct MediaRow: View {
     let item: MediaItem // 素材
+    let isActive: Bool // 是否使用中
+
+    init(item: MediaItem, isActive: Bool = false) { // 初始化
+        self.item = item // 素材
+        self.isActive = isActive // 使用中态
+    }
 
     var body: some View { // 行布局
         HStack(spacing: 12) { // 横向布局
@@ -479,6 +485,18 @@ struct MediaRow: View {
                 Text(detailText) // 详情文字
                     .font(.caption) // 小字
                     .foregroundStyle(.secondary) // 次要颜色
+            }
+
+            Spacer(minLength: 0) // 占位
+
+            if isActive { // 使用中标识
+                Text("使用中") // 文案
+                    .font(.caption) // 小字
+                    .foregroundStyle(.white) // 白色
+                    .padding(.horizontal, 8) // 左右内边距
+                    .padding(.vertical, 4) // 上下内边距
+                    .background(.black.opacity(0.5)) // 背景
+                    .clipShape(.rect(cornerRadius: 6)) // 圆角
             }
         }
         .padding(.vertical, 4) // 上下内边距

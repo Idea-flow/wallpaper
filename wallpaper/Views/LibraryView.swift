@@ -175,7 +175,10 @@ struct LibraryView: View {
     private var listContent: some View { // 列表内容
         List(selection: $selectionIDs) {
             ForEach(filteredItems) { item in
-                MediaRow(item: item)
+                MediaRow( // 列表行
+                    item: item, // 素材
+                    isActive: isActiveWallpaper(item) // 使用中态
+                )
                     .tag(item.id)
             }
             .onDelete(perform: deleteItems)
