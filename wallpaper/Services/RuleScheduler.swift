@@ -98,9 +98,11 @@ final class RuleScheduler {
                     try WallpaperService.applyImage(url: url, to: screen, fitMode: .fill)
                 }
                 LogCenter.log("[规则] 已应用图片壁纸：\(item.fileURL.lastPathComponent)")
+                CurrentWallpaperStore.shared.setCurrent(item: item) // 标记当前壁纸
             } else if item.type == .video {
                 try VideoWallpaperService.shared.applyVideo(item: item, fitMode: .fill, screenID: targetScreen)
                 LogCenter.log("[规则] 已应用视频壁纸：\(item.fileURL.lastPathComponent)")
+                CurrentWallpaperStore.shared.setCurrent(item: item) // 标记当前壁纸
             }
             item.lastUsedAt = Date() // 更新使用时间
             try? context.save() // 保存

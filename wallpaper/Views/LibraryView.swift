@@ -18,6 +18,7 @@ struct LibraryView: View {
     @State private var showingTagEditor = false // 是否显示标签弹窗
     @State private var tagInput = "" // 标签输入
     @State private var viewMode: ViewMode = .grid // 视图模式
+    @State private var activeWallpaperID: UUID? // 当前使用中的壁纸
     @State private var deleteAlertMessage: String? // 删除失败提示
 
     // ViewMode：视图模式
@@ -32,55 +33,18 @@ struct LibraryView: View {
     var body: some View { // 主体
         Group {
             if viewMode == .grid { // 网格模式
-                GeometryReader { geometry in
-                    let columns = gridColumns(for: geometry.size.width)
-                    ScrollView {
-                        LazyVGrid(columns: columns, spacing: 16) {
-                            ForEach(filteredItems) { item in
-                                Button {
-                                    handleSelection(item)
-                                } label: {
-                                    MediaCard(item: item, isSelected: selectionIDs.contains(item.id))
-                                        .frame(minWidth: cardMinWidth)
-                                }
-                                .buttonStyle(.plain)
-                                .contextMenu {
-                                    Button("设为壁纸") {
-                                        onApply(item)
-                                    }
-                                    Button("标记收藏") {
-                                        item.isFavorite.toggle()
-                                        try? modelContext.save()
-                                    }
-                                    Button("删除", role: .destructive) {
-                                        deleteItem(item)
-                                    }
-                                }
-                            }
-                        }
-                        .padding(16)
-                    }
-                    .scrollIndicators(.hidden)
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .background(libraryCardBackground)
-                }
-                .background(Color.clear) // 确保背景透明以透出 Liquid Glass 效果
+                gridContent // 网格内容
             } else { // 列表模式
-                List(selection: $selectionIDs) {
-                    ForEach(filteredItems) { item in
-                        MediaRow(item: item)
-                            .tag(item.id)
-                    }
-                    .onDelete(perform: deleteItems)
-                }
-                .scrollContentBackground(.hidden)
-                .background(Color.clear)
-                .scrollIndicators(.hidden)
-                .padding(8)
-                .background(libraryCardBackground)
+                listContent // 列表内容
             }
         }
         .animation(Glass.animation, value: selectionIDs)
+        .onAppear { // 进入时刷新当前壁纸
+            refreshActiveWallpaper() // 更新状态
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .currentWallpaperDidChange)) { _ in // 监听壁纸变化
+            refreshActiveWallpaper() // 更新状态
+        }
         .onChange(of: selectionIDs) { _, newValue in // 同步详情选择
             if newValue.isEmpty {
                 focusedItemID = nil
@@ -178,6 +142,51 @@ struct LibraryView: View {
         }
     }
 
+    private var gridContent: some View { // 网格内容
+        GeometryReader { geometry in
+            let columns = gridColumns(for: geometry.size.width) // 计算列数
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 16) {
+                    ForEach(filteredItems) { item in
+                        MediaCardButton( // 素材卡片按钮
+                            item: item, // 素材
+                            isSelected: selectionIDs.contains(item.id), // 选中态
+                            isActive: isActiveWallpaper(item), // 使用中态
+                            minWidth: cardMinWidth, // 最小宽度
+                            onSelect: { handleSelection(item) }, // 选择回调
+                            onApply: { onApply(item) }, // 设置壁纸
+                            onDelete: { deleteItem(item) }, // 删除
+                            onToggleFavorite: { // 收藏切换
+                                item.isFavorite.toggle() // 切换
+                                try? modelContext.save() // 保存
+                            }
+                        )
+                    }
+                }
+                .padding(16)
+            }
+            .scrollIndicators(.hidden)
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .background(libraryCardBackground)
+        }
+        .background(Color.clear) // 透明背景
+    }
+
+    private var listContent: some View { // 列表内容
+        List(selection: $selectionIDs) {
+            ForEach(filteredItems) { item in
+                MediaRow(item: item)
+                    .tag(item.id)
+            }
+            .onDelete(perform: deleteItems)
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.clear)
+        .scrollIndicators(.hidden)
+        .padding(8)
+        .background(libraryCardBackground)
+    }
+
     private var filteredItems: [MediaItem] { // 过滤结果
         items.filter { item in // 过滤逻辑
             if let filterType { // 类型过滤
@@ -238,6 +247,14 @@ struct LibraryView: View {
         try? modelContext.save() // 保存
     }
 
+    private func refreshActiveWallpaper() { // 刷新当前壁纸
+        activeWallpaperID = CurrentWallpaperStore.shared.currentItemID // 更新 ID
+    }
+
+    private func isActiveWallpaper(_ item: MediaItem) -> Bool { // 是否使用中
+        activeWallpaperID == item.id // 判断
+    }
+
     private func handleSelection(_ item: MediaItem) {
         if NSEvent.modifierFlags.contains(.command) {
             // Command+Click: 切换当前项选中状态
@@ -288,6 +305,43 @@ struct LibraryView: View {
         } catch {
             LogCenter.log("[删除] 删除文件失败：\(error.localizedDescription)", level: .error)
             deleteAlertMessage = "删除失败，可手动打开文件夹删除。\n路径：\(item.fileURL.path)"
+        }
+    }
+}
+
+// MediaCardButton：素材卡片按钮（拆分复杂度）
+private struct MediaCardButton: View { // 子视图
+    let item: MediaItem // 素材
+    let isSelected: Bool // 选中态
+    let isActive: Bool // 使用中态
+    let minWidth: CGFloat // 最小宽度
+    let onSelect: () -> Void // 选择回调
+    let onApply: () -> Void // 设置壁纸
+    let onDelete: () -> Void // 删除
+    let onToggleFavorite: () -> Void // 收藏切换
+
+    var body: some View { // 主体
+        Button {
+            onSelect() // 选择
+        } label: {
+            MediaCard( // 卡片
+                item: item, // 素材
+                isSelected: isSelected, // 选中态
+                isActive: isActive // 使用中态
+            )
+            .frame(minWidth: minWidth) // 最小宽度
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button("设为壁纸") { // 设置壁纸
+                onApply() // 执行
+            }
+            Button("标记收藏") { // 收藏
+                onToggleFavorite() // 切换
+            }
+            Button("删除", role: .destructive) { // 删除
+                onDelete() // 删除
+            }
         }
     }
 }

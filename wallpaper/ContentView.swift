@@ -380,11 +380,13 @@ struct ContentView: View {
                     try WallpaperService.applyImage(url: url, to: targetScreen, fitMode: fitMode) // 设置壁纸
                 }
                 LogCenter.log("[壁纸] 图片壁纸应用成功：\(item.fileURL.lastPathComponent)") // 成功日志
+                CurrentWallpaperStore.shared.setCurrent(item: item) // 标记当前壁纸
                 // 取消设置成功弹窗提示
             } else if item.type == .video { // 视频壁纸
                 let targetScreenID = screenID == "all" ? nil : screenID // 目标屏幕 ID
                 try VideoWallpaperService.shared.applyVideo(item: item, fitMode: fitMode, screenID: targetScreenID) // 启动视频壁纸
                 LogCenter.log("[壁纸] 视频壁纸应用成功：\(item.fileURL.lastPathComponent)") // 成功日志
+                CurrentWallpaperStore.shared.setCurrent(item: item) // 标记当前壁纸
                 // 取消设置成功弹窗提示
             } else {
                 try WallpaperService.applyVideoPlaceholder() // 其他类型占位

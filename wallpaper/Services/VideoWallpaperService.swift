@@ -52,6 +52,9 @@ final class VideoWallpaperService {
         currentItem = item // 保存当前素材
         currentFitMode = fitMode // 保存当前模式
         currentScreenID = screenID // 保存当前目标
+        Task { @MainActor in // 切回主线程
+            CurrentWallpaperStore.shared.setCurrent(item: item) // 标记当前壁纸
+        }
         startScreenObserver() // 监听屏幕变化
         startPowerObserver() // 监听低电模式
         startVisibilityTimer() // 定期检测可见性

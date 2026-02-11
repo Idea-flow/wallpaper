@@ -82,9 +82,11 @@ enum MenuBarActions { // 枚举作为命名空间
                     try WallpaperService.applyImage(url: url, to: nil, fitMode: .fill) // 应用图片
                 }
                 LogCenter.log("[菜单栏] 随机图片已应用") // 成功日志
+                CurrentWallpaperStore.shared.setCurrent(item: item) // 标记当前壁纸
             } else if item.type == .video { // 视频
                 try VideoWallpaperService.shared.applyVideo(item: item, fitMode: .fill, screenID: nil) // 应用视频
                 LogCenter.log("[菜单栏] 随机视频已应用") // 成功日志
+                CurrentWallpaperStore.shared.setCurrent(item: item) // 标记当前壁纸
             } else { // 其他类型
                 LogCenter.log("[菜单栏] 随机壁纸失败：不支持的素材类型", level: .warning) // 日志
             }

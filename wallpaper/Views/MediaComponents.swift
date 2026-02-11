@@ -42,6 +42,13 @@ struct ThumbnailView: View {
 struct MediaCard: View {
     let item: MediaItem
     let isSelected: Bool
+    let isActive: Bool
+
+    init(item: MediaItem, isSelected: Bool, isActive: Bool = false) { // 初始化
+        self.item = item // 素材
+        self.isSelected = isSelected // 选中态
+        self.isActive = isActive // 使用中态
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -64,6 +71,21 @@ struct MediaCard: View {
                     placeholder
                 }
 
+                if isActive { // 当前使用中
+                    ZStack { // 蒙层
+                        Rectangle()
+                            .fill(.black.opacity(0.35)) // 半透明遮罩
+                        Text("使用中") // 文案
+                            .font(.headline) // 标题
+                            .foregroundStyle(.white) // 白色
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(.black.opacity(0.45))
+                            .clipShape(.rect(cornerRadius: 8))
+                    }
+                    .transition(.opacity)
+                }
+
                 if isSelected {
                     RoundedRectangle(cornerRadius: 22, style: .continuous)
                         .stroke(Color.accentColor, lineWidth: 2)
@@ -80,6 +102,7 @@ struct MediaCard: View {
                 .foregroundStyle(.primary)
         }
         .animation(Glass.animation, value: isSelected)
+        .animation(Glass.animation, value: isActive)
     }
 
     private var placeholder: some View {
